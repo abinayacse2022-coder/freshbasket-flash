@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+    /* Add this small style block for the badges */
+    .card { position: relative; }
+    .offer-badge {
+        position: absolute; top: 10px; left: 10px;
+        background: #e74c3c; color: white;
+        padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.8em;
+        z-index: 10;
+    }
+    .old-price { text-decoration: line-through; color: #999; margin-right: 5px; font-size: 0.9em; }
+    .new-price { color: #28a745; font-weight: bold; font-size: 1.1em; }
+</style>
+
+<div class="home-hero">
+    <div style="margin-bottom: 20px;">
+        {% if query %}
+            <h1>Search results for "{{ query }}"</h1>
+            <a href="/" style="text-decoration: none; color: #28a745;">← Clear Search</a>
+        {% else %}
+            <h1>Fresh fruits & vegetables</h1>
+        {% endif %}
+    </div>
+
+    {% if products %}
+        <div class="grid">
+        {% for p in products %}
+          <div class="card" data-id="{{p.id}}">
+            
+            {% if p.mrp and p.mrp > p.price %}
+                {% set discount = ((p.mrp - p.price) / p.mrp * 100) %}
+                <div class="offer-badge">{{ '%.0f' % discount }}% OFF</div>
+            {% endif %}
+
+            <img src="{{p.image}}" alt="{{p.name}}" loading="lazy" onerror="this.src='/static/images/placeholder.svg'">
+            
+            <h3>{{p.name}}</h3>
+            
+            <p class="price">
+                {% if p.mrp and p.mrp > p.price %}
+                    <span class="old-price">₹{{'%.0f' % p.mrp}}</span>
+                {% endif %}
+                <span class="new-price">₹{{'%.0f' % p.price}} / kg</span>
+            </p>
+            
+            <form method="post" action="/cart/add" class="add-form">
+              <input type="hidden" name="product_id" value="{{p.id}}">
+              <div class="qty-controls">
+                <button type="button" class="qty-decrease">-</button>
+                <input class="qty" name="qty" type="number" value="1.0" min="0.1" step="0.1">
+                <button type="button" class="qty-increase">+</button>
+              </div>
+              <button class="add-cart" type="submit">Add to Cart</button>
+            </form>
+          </div>
+        {% endfor %}
+        </div>
+    {% else %}
+        <div style="text-align: center; padding: 50px;">
+            <h3>No products found for "{{ query }}"</h3>
+            <a href="/" class="btn">View All Products</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FreshBasket</title>
+    <link rel="stylesheet" href="/static/style.css">
+  </head>
+  <body>
+    <header class="nav">
+      <div class="brand"><a href="/" style="color:white;text-decoration:none;">FreshBasket</a></div>
+      <nav class="nav-links">
+        
+        <form action="/" method="GET" style="display:inline-block; margin-right: 15px;">
+            <input type="text" name="q" placeholder="Search fruit..." value="{{ query or '' }}" 
+                   style="padding: 5px; border-radius: 4px; border: none;">
+            <button type="submit" class="btn" style="padding: 5px 10px; font-size: 0.9em; height: 28px;">🔍</button>
+        </form>
+        <a href="/">Home</a>
+        <a href="/cart">Cart</a>
+        {% if session.user %}
+          <a href="/logout">Logout</a>
+        {% else %}
+          <a href="/login">Login</a>
+          <a href="/signup">Signup</a>
+        {% endif %}
+      </nav>
+    </header>
+
+    <main class="container">
+      {% block content %}{% endblock %}
+    </main>
+    
+    <script>
+        // Simple JS to handle adding to cart
+        function addToCart(pid) {
+            fetch('/cart/add', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({product_id: pid, qty: 1})
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert("Item added to cart!");
+            });
+        }
+       
+    </script>
+     <footer style="text-align: center; margin-top: 50px; font-size: 0.8em; color: #aaa;">
+    <p>&copy; 2024 FreshBasket. <a href="/admin/login" style="color: #aaa; text-decoration: none;">Admin Login</a></p>
+</footer>
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    // Find all quantity control sections
+    const controls = document.querySelectorAll('.qty-controls');
+
+    controls.forEach(control => {
+      const input = control.querySelector('.qty');
+      const btnMinus = control.querySelector('.qty-decrease');
+      const btnPlus = control.querySelector('.qty-increase');
+
+      // Helper to update value safely
+      const updateQty = (change) => {
+        let currentVal = parseFloat(input.value) || 0;
+        let newVal = currentVal + change;
+        
+        // Don't let it go below 0.5 kg
+        if (newVal < 0.5) newVal = 0.5;
+        
+        // Round to 1 decimal place (e.g., 1.0, 1.5, 2.0)
+        input.value = newVal.toFixed(1);
+      };
+
+      // Click Minus
+      btnMinus.addEventListener('click', () => {
+        updateQty(-0.5); // Decrease by 0.5 kg
+      });
+
+      // Click Plus
+      btnPlus.addEventListener('click', () => {
+        updateQty(0.5); // Increase by 0.5 kg
+      });
+    });
+  });
+</script>
+  </body>
+</html>

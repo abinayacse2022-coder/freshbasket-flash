@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block content %}
+<div style="max-width: 500px; margin: 50px auto; padding: 30px; background: white; border-radius: 8px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+    
+    <div style="font-size: 50px; color: #28a745; margin-bottom: 10px;">✔</div>
+    
+    <h2>Order Confirmed!</h2>
+    <p style="color: #666;">Thank you, {{ order.name }}. Your order has been placed successfully.</p>
+    
+    <div style="background: #f9f9f9; padding: 15px; margin: 20px 0; text-align: left; border-radius: 5px;">
+        <p><strong>Payment Method:</strong> {{ order.payment }}</p>
+        <p><strong>Delivery Address:</strong> {{ order.address_full }}</p>
+    </div>
+
+    <a href="/" class="btn" style="display: inline-block; background-color: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Continue Shopping</a>
+</div>
+{% endblock %}

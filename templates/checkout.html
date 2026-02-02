@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h1>Checkout</h1>
+  
+  {% if items %}
+    <div class="checkout-items">
+      {% for it in items %}
+        <div class="checkout-row">
+          <img src="{{it.image}}" alt="{{it.name}}" style="width:50px; height:50px; object-fit:cover;" onerror="this.src='https://via.placeholder.com/50'">
+          <div>{{it.name}} x {{'%.1f' % it.qty}} kg</div>
+          <div>₹{{'%.2f' % it.subtotal}}</div>
+        </div>
+      {% endfor %}
+    </div>
+    <div class="cart-summary" style="margin: 20px 0; font-size: 1.2em;">
+        Total to Pay: <strong>₹{{'%.2f' % total}}</strong>
+    </div>
+    
+    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+        <h3>Delivery Details</h3>
+        <p style="color: #666; font-size: 0.9em;">
+            {% if session.user %}
+                Verify or edit your address below. We will save changes for next time.
+            {% else %}
+                <a href="/login" style="color: #28a745;">Login</a> to save your address for future orders.
+            {% endif %}
+        </p>
+
+        <form method="post" class="checkout-form">
+          <div class="address-grid">
+            <div class="field"><label>Name <input required name="name" value="{{ address_data.get('name', '') }}"></label></div>
+            <div class="field"><label>Phone <input required name="phone" placeholder="Mobile number" value="{{ address_data.get('phone', '') }}"></label></div>
+            <div class="field full"><label>Address <textarea required name="address" placeholder="House number, street">{{ address_data.get('address', '') }}</textarea></label></div>
+            <div class="field"><label>Taluk <input required name="taluk" placeholder="Taluk" value="{{ address_data.get('taluk', '') }}"></label></div>
+            <div class="field"><label>Near Location <input name="near" placeholder="Landmark" value="{{ address_data.get('near', '') }}"></label></div>
+            <div class="field"><label>District <input required name="district" placeholder="District" value="{{ address_data.get('district', '') }}"></label></div>
+            <div class="field"><label>Pincode <input required name="pincode" placeholder="PIN code" value="{{ address_data.get('pincode', '') }}"></label></div>
+          </div>
+          
+          <label style="margin-top: 15px; display: block; font-weight: bold;">Payment Method</label>
+          <select name="payment" style="width: 100%; padding: 10px; margin-bottom: 20px;">
+            <option>Cash on Delivery</option>
+          </select>
+          
+          <button class="btn" type="submit" style="width: 100%; font-size: 1.1em;">Confirm & Place Order</button>
+        </form>
+    </div>
+
+  {% else %}
+    <p>Your cart is empty.</p>
+    <a href="/" class="btn">Go Shopping</a>
+  {% endif %}
+{% endblock %}

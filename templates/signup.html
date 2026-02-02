@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block content %}
+  <div class="auth-page">
+    <div class="auth-box">
+      <h1>Signup</h1>
+      {% if error %}<p class="error">{{error}}</p>{% endif %}
+      <form method="post" class="auth-form">
+        <label>Email <input name="email" type="email" required></label>
+        <label>Password <input name="password" type="password" required></label>
+        <div style="text-align:center;margin-top:12px"><button class="btn" type="submit">Create account</button></div>
+      </form>
+    </div>
+  </div>
+{% endblock %}
