@@ -2,13 +2,23 @@ from flask import Flask, render_template, session, redirect, url_for, request, j
 from werkzeug.security import generate_password_hash, check_password_hash
 import json
 import os
+import boto3  # AWS SDK
 
-# AWS Looks for 'application'
-application = Flask(__name__)
-application.secret_key = "aws_secret_key_random_string"
+# --- AWS CONFIGURATION ---
+# AWS Elastic Beanstalk looks for the 'application' variable
+application = app = Flask(__name__)
+application.secret_key = "aws_secret_key_change_me"
 
+# --- AWS SNS CONFIGURATION ---
+# REPLACE THIS ARN with yours from the AWS Console!
+SNS_TOPIC_ARN = 'arn:aws:sns:us-east-1:123456789012:MyFruitStoreOrders'
+sns_client = boto3.client('sns', region_name='us-east-1')
+
+# --- FILE CONFIGURATION ---
 DATA_FILE = "users.json"
 PRODUCTS_FILE = "products.json"
+
+# ADMIN CREDENTIALS
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD_HASH = generate_password_hash("admin123") 
 
@@ -27,6 +37,8 @@ DEFAULT_PRODUCTS = [
     {"id": 22, "name": "Potato", "price": 35, "mrp": 35, "image": "https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=400"}
 ]
 
+# --- HELPER FUNCTIONS ---
+
 def load_json(filename, default_data):
     if not os.path.exists(filename):
         try:
@@ -40,10 +52,12 @@ def save_json(filename, data):
     try:
         with open(filename, "w") as f: json.dump(data, f)
     except IOError:
-        pass 
+        pass # AWS filesystems are often read-only
 
 def get_all_products():
     return load_json(PRODUCTS_FILE, DEFAULT_PRODUCTS)
+
+# --- USER ROUTES ---
 
 @application.route("/")
 def home():
@@ -53,18 +67,14 @@ def home():
         products = [p for p in products if query.lower() in p['name'].lower()]
     return render_template("home.html", products=products, query=query)
 
-@application.route("/products")
-def products(): return redirect(url_for('home'))
-
 @application.route("/cart")
 def cart():
-    cart = session.get('cart', {})
+    cart_data = session.get('cart', {})
     items = []
     total = 0
     all_products = {p['id']: p for p in get_all_products()}
-    for pid_str, qty in cart.items():
-        pid = int(pid_str)
-        p = all_products.get(pid)
+    for pid_str, qty in cart_data.items():
+        p = all_products.get(int(pid_str))
         if p:
             subtotal = p['price'] * float(qty)
             items.append({**p, 'qty': float(qty), 'subtotal': subtotal})
@@ -74,117 +84,110 @@ def cart():
 @application.route('/cart/add', methods=['POST'])
 def add_to_cart():
     data = request.get_json() if request.is_json else request.form
-    pid = int(data.get('product_id'))
+    pid = str(data.get('product_id'))
     qty = float(data.get('qty', 1))
-    cart = session.get('cart', {})
-    cart[str(pid)] = float(cart.get(str(pid), 0)) + qty
-    session['cart'] = cart
-    if request.is_json: return jsonify({'success': True, 'cart': session['cart']})
-    return redirect(request.referrer or url_for('cart'))
-
-@application.route('/cart/update', methods=['POST'])
-def update_cart():
-    data = request.get_json() if request.is_json else request.form
-    pid = int(data.get('product_id'))
-    qty = float(data.get('qty', 0))
-    cart = session.get('cart', {})
-    if qty <= 0: cart.pop(str(pid), None)
-    else: cart[str(pid)] = qty
-    session['cart'] = cart
-    if request.is_json: return jsonify({'success': True, 'cart': session['cart']})
-    return redirect(request.referrer or url_for('cart'))
+    cart_data = session.get('cart', {})
+    cart_data[pid] = float(cart_data.get(pid, 0)) + qty
+    session['cart'] = cart_data
+    return jsonify({'success': True}) if request.is_json else redirect(url_for('cart'))
 
 @application.route('/checkout', methods=['GET', 'POST'])
 def checkout():
     if request.method == 'GET':
-        cart = session.get('cart', {})
-        items = []
+        cart_data = session.get('cart', {})
         total = 0
         all_products = {p['id']: p for p in get_all_products()}
-        for pid_str, qty in cart.items():
-            pid = int(pid_str)
-            p = all_products.get(pid)
+        items = []
+        for pid, qty in cart_data.items():
+            p = all_products.get(int(pid))
             if p:
-                subtotal = p['price'] * float(qty)
-                items.append({**p, 'qty': float(qty), 'subtotal': subtotal})
-                total += subtotal
+                items.append(p)
+                total += p['price'] * float(qty)
+        
         address_data = {}
         if 'user' in session:
             users = load_json(DATA_FILE, {})
-            user_email = session['user']
-            address_data = users.get(user_email, {}).get('address', {})
+            address_data = users.get(session['user'], {}).get('address', {})
         return render_template('checkout.html', items=items, total=total, address_data=address_data)
 
-    new_address_data = {
-        'name': request.form.get('name'), 'phone': request.form.get('phone'),
-        'address': request.form.get('address'), 'taluk': request.form.get('taluk'),
-        'district': request.form.get('district'), 'pincode': request.form.get('pincode')
-    }
-    if 'user' in session:
-        users = load_json(DATA_FILE, {})
-        user_email = session['user']
-        if user_email in users:
-            users[user_email]['address'] = new_address_data
-            save_json(DATA_FILE, users)
+    name = request.form.get('name')
+    address = request.form.get('address')
+    payment = request.form.get('payment')
+    total_val = request.form.get('total_amt', '0.00')
+
+    # --- AWS SNS ALERT ---
+    try:
+        sns_message = f"NEW ORDER RECEIVED!\n\nCustomer: {name}\nTotal: ₹{total_val}\nAddress: {address}\nPayment: {payment}"
+        sns_client.publish(
+            TopicArn=SNS_TOPIC_ARN,
+            Message=sns_message,
+            Subject="🍎 New Fruit Store Order"
+        )
+    except Exception as e:
+        print(f"SNS Notification Failed: {e}")
+
     session['cart'] = {}
-    address_full = f"{new_address_data['address']}, {new_address_data['district']} - {new_address_data['pincode']}"
-    order = {'name': new_address_data['name'], 'address_full': address_full, 'payment': request.form.get('payment', 'Cash'), 'total': 0}
+    order = {'name': name, 'address_full': address, 'payment': payment}
     return render_template('order_confirmation.html', order=order)
+
+
 
 @application.route('/login', methods=['GET', 'POST'])
 def login():
-    if request.method == 'GET': return render_template('login.html')
-    users = load_json(DATA_FILE, {})
-    email = request.form.get('email')
-    pwd = request.form.get('password')
-    user = users.get(email)
-    if user and check_password_hash(user['password'], pwd):
-        session['user'] = email
-        return redirect(url_for('home'))
-    return render_template('login.html', error='Invalid credentials')
+    if request.method == 'POST':
+        users = load_json(DATA_FILE, {})
+        email = request.form.get('email')
+        pwd = request.form.get('password')
+        user = users.get(email)
+        if user and check_password_hash(user['password'], pwd):
+            session['user'] = email
+            return redirect(url_for('home'))
+        return render_template('login.html', error='Invalid credentials')
+    return render_template('login.html')
 
 @application.route('/signup', methods=['GET', 'POST'])
 def signup():
-    if request.method == 'GET': return render_template('signup.html')
-    users = load_json(DATA_FILE, {})
-    email = request.form.get('email')
-    pwd = request.form.get('password')
-    if email in users: return render_template('signup.html', error='Email already exists')
-    users[email] = {'password': generate_password_hash(pwd)}
-    save_json(DATA_FILE, users)
-    session['user'] = email
-    return redirect(url_for('home'))
+    if request.method == 'POST':
+        users = load_json(DATA_FILE, {})
+        email = request.form.get('email')
+        pwd = request.form.get('password')
+        if email in users: return render_template('signup.html', error='User exists')
+        users[email] = {'password': generate_password_hash(pwd)}
+        save_json(DATA_FILE, users)
+        session['user'] = email
+        return redirect(url_for('home'))
+    return render_template('signup.html')
 
 @application.route('/logout')
 def logout():
-    session.pop('user', None)
-    session.pop('is_admin', None)
+    session.clear()
     return redirect(url_for('home'))
+
+# --- ADMIN ROUTES ---
 
 @application.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        if username == ADMIN_USERNAME and check_password_hash(ADMIN_PASSWORD_HASH, password):
+        if request.form.get('username') == ADMIN_USERNAME and check_password_hash(ADMIN_PASSWORD_HASH, request.form.get('password')):
             session['is_admin'] = True
             return redirect(url_for('add_product'))
-        return render_template('admin_login.html', error="Invalid Admin Credentials")
     return render_template('admin_login.html')
 
 @application.route('/admin/add', methods=['GET', 'POST'])
 def add_product():
     if not session.get('is_admin'): return redirect(url_for('admin_login'))
     if request.method == 'POST':
-        name = request.form.get('name')
-        price = float(request.form.get('price'))
-        mrp = float(request.form.get('mrp') or price)
-        image = request.form.get('image')
         products = get_all_products()
-        new_id = max([p['id'] for p in products]) + 1 if products else 1
-        products.append({"id": new_id, "name": name, "price": price, "mrp": mrp, "image": image})
+        new_product = {
+            "id": max([p['id'] for p in products]) + 1 if products else 1,
+            "name": request.form.get('name'),
+            "price": float(request.form.get('price')),
+            "mrp": float(request.form.get('mrp') or request.form.get('price')),
+            "image": request.form.get('image')
+        }
+        products.append(new_product)
         save_json(PRODUCTS_FILE, products)
-        return render_template('add_product.html', success=f"Added {name} successfully!")
+        return render_template('add_product.html', success=f"Added {new_product['name']}!")
     return render_template('add_product.html')
 
 if __name__ == '__main__':
