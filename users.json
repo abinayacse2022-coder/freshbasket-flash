@@ -1,1 +1,22 @@
-{"abinayacse2022@grt.edu.in": {"password": "scrypt:32768:8:1$0gcRI168901so4Fo$baf8da432f30c0823204b539ba5bf4d6aa6ef34d0e7c98b37abf90ca34a3001ca6a4f6114969c468f6f5b7c834744fa03515606e3b799aab3ad0436ed20e931d", "address": {"name": "Abinaya", "phone": "7094544008", "address": "10,vanivilasapuram road,kk nagar,podaturpet", "taluk": "Pallipet", "near": "Masque", "district": "Tiruvallur", "pincode": "631208"}}, "abinayakrishnan565@gmail.com": {"password": "scrypt:32768:8:1$AkC8hx1zCNPAA1tF$1d39479476cf7108931bffdb229d5ac79411a67a7657ed65698ab3a6734ce8c0934dda43f9b2599db797d5337cd2ffe7f9ba6d875a9066eab9e22e78f5229f03"}}
+{
+    "abinayacse2022@grt.edu.in": {
+        "password": "scrypt:32768:8:1$0gcRI168901so4Fo$baf8da432f30c0823204b539ba5bf4d6aa6ef34d0e7c98b37abf90ca34a3001ca6a4f6114969c468f6f5b7c834744fa03515606e3b799aab3ad0436ed20e931d",
+        "address": {
+            "name": "Abinaya",
+            "phone": "7094544008",
+            "address": "10,vanivilasapuram road,kk nagar,podaturpet",
+            "pincode": "631208",
+            "taluk": "Pallipet"
+        }
+    },
+    "abinayakrishnan565@gmail.com": {
+        "password": "scrypt:32768:8:1$jFnqXHh65TIIwcGM$bee09e6bab611b2fc7e5cccffd830d5b0548ee9a01a597390cb741189ebbc10d7486d9353c4b1aa8c7cda53177ead6afb8a74203c99b817cfe9e78f15ced1356",
+        "address": {
+            "name": "Abinaya",
+            "phone": "7094544008",
+            "address": "10,vanivilasapuram road,podaturpet",
+            "pincode": "631208",
+            "taluk": "Pallipet"
+        }
+    }
+}

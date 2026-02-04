@@ -14,4 +14,14 @@
 
     <a href="/" class="btn" style="display: inline-block; background-color: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Continue Shopping</a>
 </div>
+<div style="text-align: left; margin-top: 20px;">
+    <p><strong>Payment Method:</strong> {{ payment_method }}</p>
+    
+    <p><strong>Delivery Address:</strong><br>
+        {{ order.name }}<br>
+        {{ order.address }}, {{ order.taluk }}<br>
+        {{ order.pincode }}<br>
+        Phone: {{ order.phone }}
+    </p>
+</div>
 {% endblock %}

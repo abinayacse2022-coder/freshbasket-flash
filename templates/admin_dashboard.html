@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="padding: 20px; max-width: 900px; margin: auto;">
+    <h2>📦 Product Management</h2>
+    <a href="/admin/add" style="display: inline-block; background: #28a745; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; margin-bottom: 20px;">+ Add New Fruit</a>
+
+    <table style="width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <thead>
+            <tr style="background: #f4f4f4; text-align: left;">
+                <th style="padding: 12px; border-bottom: 2px solid #ddd;">Image</th>
+                <th style="padding: 12px; border-bottom: 2px solid #ddd;">Name</th>
+                <th style="padding: 12px; border-bottom: 2px solid #ddd;">Price</th>
+                <th style="padding: 12px; border-bottom: 2px solid #ddd;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for product in products %}
+            <tr>
+                <td style="padding: 10px; border-bottom: 1px solid #eee;">
+                    <img src="{{ product.image }}" style="width: 50px; height: 50px; border-radius: 5px; object-fit: cover;">
+                </td>
+                <td style="padding: 10px; border-bottom: 1px solid #eee;">{{ product.name }}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #eee;">₹{{ product.price }}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #eee;">
+                    <a href="/admin/edit/{{ product.id }}" style="color: #007bff; text-decoration: none; margin-right: 15px;">✏️ Edit</a>
+                    
+                    <form action="/admin/delete/{{ product.id }}" method="POST" style="display: inline;">
+                        <button type="submit" onclick="return confirm('Delete this product?')" style="background: none; border: none; color: #dc3545; cursor: pointer; padding: 0;">🗑️ Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

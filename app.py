@@ -1,23 +1,29 @@
-
-from flask import Flask, render_template, session, redirect, url_for, request, jsonify
-
 from flask import Flask, render_template, session, redirect, url_for, request, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 import json
 import os
-
-app = Flask(__name__)
-app.secret_key = "change_this_to_a_random_secret"
+import boto3
+import uuid
+from datetime import datetime
 
 # --- CONFIGURATION ---
+app = Flask(__name__)
+app.secret_key = "freshbasket_secure_key_2026"
+
+# AWS SNS Setup (Optional for local, but integrated)
+SNS_TOPIC_ARN = 'arn:aws:sns:us-east-1:123456789012:MyFruitStoreOrders'
+sns_client = boto3.client('sns', region_name='us-east-1')
+
 DATA_FILE = "users.json"
 PRODUCTS_FILE = "products.json"
+ORDERS_FILE = "orders.json"
 
 # ADMIN CREDENTIALS
 ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD_HASH = generate_password_hash("admin123")
+ADMIN_PASSWORD_HASH = generate_password_hash("admin123") 
+
+# --- DEFAULT PRODUCTS ---
 DEFAULT_PRODUCTS = [
-   
     {"id": 1, "name": "Banana", "price": 40, "image": "https://upload.wikimedia.org/wikipedia/commons/8/8a/Banana-Single.jpg"},
     {"id": 2, "name": "Papaya", "price": 80, "image": "/static/images/papaya.jpg"},
     {"id": 3, "name": "Guava", "price": 60, "image": "/static/images/guava.jpg"},
@@ -48,16 +54,18 @@ def load_json(filename, default_data):
     if not os.path.exists(filename):
         with open(filename, "w") as f: json.dump(default_data, f)
         return default_data
-    with open(filename, "r") as f: return json.load(f)
+    with open(filename, "r") as f:
+        try: return json.load(f)
+        except: return default_data
 
 def save_json(filename, data):
-    with open(filename, "w") as f: json.dump(data, f)
+    with open(filename, "w") as f:
+        json.dump(data, f, indent=4)
 
 def get_all_products():
     return load_json(PRODUCTS_FILE, DEFAULT_PRODUCTS)
 
-# --- ROUTES ---
-
+# --- PUBLIC ROUTES ---
 @app.route("/")
 def home():
     query = request.args.get('q')
@@ -66,150 +74,148 @@ def home():
         products = [p for p in products if query.lower() in p['name'].lower()]
     return render_template("home.html", products=products, query=query)
 
-@app.route("/products")
-def products(): return redirect(url_for('home'))
-
 @app.route("/cart")
 def cart():
-    cart = session.get('cart', {})
-    items = []
-    total = 0
-    all_products = {p['id']: p for p in get_all_products()}
-    for pid_str, qty in cart.items():
-        pid = int(pid_str)
+    cart_data = session.get('cart', {})
+    items, total = [], 0
+    all_products = {str(p['id']): p for p in get_all_products()}
+    for pid, qty in cart_data.items():
         p = all_products.get(pid)
         if p:
-            subtotal = p['price'] * float(qty)
-            items.append({**p, 'qty': float(qty), 'subtotal': subtotal})
-            total += subtotal
+            sub = p['price'] * float(qty)
+            items.append({**p, 'qty': float(qty), 'subtotal': sub})
+            total += sub
     return render_template('cart.html', items=items, total=total)
 
 @app.route('/cart/add', methods=['POST'])
 def add_to_cart():
-    data = request.get_json() if request.is_json else request.form
-    pid = int(data.get('product_id'))
-    qty = float(data.get('qty', 1))
-    cart = session.get('cart', {})
-    cart[str(pid)] = float(cart.get(str(pid), 0)) + qty
-    session['cart'] = cart
-    if request.is_json: return jsonify({'success': True, 'cart': session['cart']})
-    return redirect(request.referrer or url_for('cart'))
-
-@app.route('/cart/update', methods=['POST'])
-def update_cart():
-    data = request.get_json() if request.is_json else request.form
-    pid = int(data.get('product_id'))
-    qty = float(data.get('qty', 0))
-    cart = session.get('cart', {})
-    if qty <= 0: cart.pop(str(pid), None)
-    else: cart[str(pid)] = qty
-    session['cart'] = cart
-    if request.is_json: return jsonify({'success': True, 'cart': session['cart']})
-    return redirect(request.referrer or url_for('cart'))
+    pid = str(request.form.get('product_id'))
+    qty = float(request.form.get('qty', 1))
+    cart_data = session.get('cart', {})
+    cart_data[pid] = float(cart_data.get(pid, 0)) + qty
+    session['cart'] = cart_data
+    return redirect(url_for('cart'))
 
 @app.route('/checkout', methods=['GET', 'POST'])
 def checkout():
-    if request.method == 'GET':
-        cart = session.get('cart', {})
-        items = []
-        total = 0
-        all_products = {p['id']: p for p in get_all_products()}
-        for pid_str, qty in cart.items():
-            pid = int(pid_str)
-            p = all_products.get(pid)
-            if p:
-                subtotal = p['price'] * float(qty)
-                items.append({**p, 'qty': float(qty), 'subtotal': subtotal})
-                total += subtotal
-        
-        address_data = {'name': '', 'phone': '', 'address': '', 'taluk': '', 'near': '', 'district': '', 'pincode': ''}
-        if 'user' in session:
-            users = load_json(DATA_FILE, {})
-            user_email = session['user']
-            if 'address' in users.get(user_email, {}):
-                address_data = users[user_email]['address']
-        return render_template('checkout.html', items=items, total=total, address_data=address_data)
+    if 'user' not in session: return redirect(url_for('login'))
+    user_email = session['user']
+    users = load_json(DATA_FILE, {})
 
-    # POST - Place Order
-    new_address_data = {
-        'name': request.form.get('name'), 'phone': request.form.get('phone'),
-        'address': request.form.get('address'), 'taluk': request.form.get('taluk'),
-        'near': request.form.get('near'), 'district': request.form.get('district'),
-        'pincode': request.form.get('pincode')
-    }
-    payment = request.form.get('payment')
+    # Calculate Current Cart Totals
+    cart_data = session.get('cart', {})
+    all_p = {str(p['id']): p for p in get_all_products()}
+    items_to_save, total_val = [], 0
+    for pid, qty in cart_data.items():
+        if pid in all_p:
+            p = all_p[pid]
+            sub = p['price'] * float(qty)
+            items_to_save.append({'name': p['name'], 'qty': float(qty), 'subtotal': sub})
+            total_val += sub
+
+    if request.method == 'POST':
+        # 1. Capture and Save Address
+        addr = {
+            'name': request.form.get('name'),
+            'phone': request.form.get('phone'),
+            'address': request.form.get('address'),
+            'pincode': request.form.get('pincode'),
+            'taluk': request.form.get('taluk')
+        }
+        users[user_email]['address'] = addr
+        save_json(DATA_FILE, users)
+
+        # 2. Save Order to History
+        order_id = str(uuid.uuid4())[:8]
+        order_item = {
+            'order_id': order_id,
+            'user_email': user_email,
+            'date': datetime.now().strftime("%Y-%m-%d %H:%M"),
+            'items': items_to_save,
+            'total': total_val,
+            'address': addr,
+            'payment': request.form.get('payment', 'Cash on Delivery')
+        }
+        orders = load_json(ORDERS_FILE, [])
+        orders.append(order_item)
+        save_json(ORDERS_FILE, orders)
+
+        # 3. SNS Alert
+        try:
+            sns_client.publish(TopicArn=SNS_TOPIC_ARN, Message=f"Order {order_id} by {addr['name']}", Subject="New Order")
+        except: pass
+
+        session.pop('cart', None)
+        return render_template('order_confirmation.html', order=order_item, payment_method=order_item['payment'])
+
+    # GET: Pre-fill address
+    saved_addr = users.get(user_email, {}).get('address', {})
+    return render_template('checkout.html', address_data=saved_addr, items=items_to_save, total=total_val)
+
+@app.route('/history')
+def history():
+    if 'user' not in session: return redirect(url_for('login'))
+    all_orders = load_json(ORDERS_FILE, [])
+    user_orders = [o for o in all_orders if o['user_email'] == session['user']]
+    user_orders.reverse() # Newest first
+    return render_template('history.html', orders=user_orders)
+
+# --- ADMIN ROUTES (Includes Edit Fix) ---
+@app.route('/admin/dashboard')
+def admin_dashboard():
+    if not session.get('is_admin'): return redirect(url_for('admin_login'))
+    return render_template('admin_dashboard.html', products=get_all_products())
+
+@app.route('/admin/edit/<int:pid>', methods=['GET', 'POST'])
+def edit_product(pid):
+    if not session.get('is_admin'): return redirect(url_for('admin_login'))
+    products = get_all_products()
+    product = next((p for p in products if p['id'] == pid), None)
     
-    if 'user' in session:
-        users = load_json(DATA_FILE, {})
-        user_email = session['user']
-        if user_email in users:
-            users[user_email]['address'] = new_address_data
-            save_json(DATA_FILE, users)
-
-    session['cart'] = {}
-    address_full = f"{new_address_data['address']}, {new_address_data['taluk']}, {new_address_data['district']} - {new_address_data['pincode']}"
-    order = {'name': new_address_data['name'], 'address_full': address_full, 'payment': payment, 'total': request.form.get('total_amt', '0.00')}
-    return render_template('order_confirmation.html', order=order)
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'GET': return render_template('login.html')
-    users = load_json(DATA_FILE, {})
-    email = request.form.get('email')
-    pwd = request.form.get('password')
-    user = users.get(email)
-    if user and check_password_hash(user['password'], pwd):
-        session['user'] = email
-        return redirect(url_for('home'))
-    return render_template('login.html', error='Invalid credentials')
-
-@app.route('/signup', methods=['GET', 'POST'])
-def signup():
-    if request.method == 'GET': return render_template('signup.html')
-    users = load_json(DATA_FILE, {})
-    email = request.form.get('email')
-    pwd = request.form.get('password')
-    if email in users: return render_template('signup.html', error='Email already exists')
-    users[email] = {'password': generate_password_hash(pwd)}
-    save_json(DATA_FILE, users)
-    session['user'] = email
-    return redirect(url_for('home'))
-
-@app.route('/logout')
-def logout():
-    session.pop('user', None)
-    session.pop('is_admin', None)
-    return redirect(url_for('home'))
-
-# --- ADMIN ROUTES ---
+    if request.method == 'POST' and product:
+        product.update({
+            "name": request.form.get('name'),
+            "price": float(request.form.get('price')),
+            "mrp": float(request.form.get('mrp') or request.form.get('price')),
+            "image": request.form.get('image')
+        })
+        save_json(PRODUCTS_FILE, products)
+        return redirect(url_for('admin_dashboard'))
+    return render_template('edit_product.html', product=product)
 
 @app.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        if username == ADMIN_USERNAME and check_password_hash(ADMIN_PASSWORD_HASH, password):
+        if request.form.get('username') == ADMIN_USERNAME and check_password_hash(ADMIN_PASSWORD_HASH, request.form.get('password')):
             session['is_admin'] = True
-            # DIRECTLY GO TO ADD PRODUCT (No Manage Page)
-            return redirect(url_for('add_product'))
-        return render_template('admin_login.html', error="Invalid Admin Credentials")
+            return redirect(url_for('admin_dashboard'))
     return render_template('admin_login.html')
 
-@app.route('/admin/add', methods=['GET', 'POST'])
-def add_product():
-    if not session.get('is_admin'): return redirect(url_for('admin_login'))
+@app.route('/login', methods=['GET', 'POST'])
+def login():
     if request.method == 'POST':
-        name = request.form.get('name')
-        price = float(request.form.get('price'))
-        mrp = float(request.form.get('mrp') or price)
-        image = request.form.get('image')
-        products = get_all_products()
-        new_id = max([p['id'] for p in products]) + 1 if products else 1
-        products.append({"id": new_id, "name": name, "price": price, "mrp": mrp, "image": image})
-        save_json(PRODUCTS_FILE, products)
-        # Show success message on same page
-        return render_template('add_product.html', success=f"Added {name} successfully!")
-    return render_template('add_product.html')
+        users = load_json(DATA_FILE, {})
+        email, pwd = request.form.get('email'), request.form.get('password')
+        if email in users and check_password_hash(users[email]['password'], pwd):
+            session['user'] = email
+            return redirect(url_for('home'))
+    return render_template('login.html')
+
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        users = load_json(DATA_FILE, {})
+        email, pwd = request.form.get('email'), request.form.get('password')
+        users[email] = {'password': generate_password_hash(pwd), 'address': {}}
+        save_json(DATA_FILE, users)
+        session['user'] = email
+        return redirect(url_for('home'))
+    return render_template('signup.html')
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('home'))
 
 if __name__ == '__main__':
     app.run(debug=True)
