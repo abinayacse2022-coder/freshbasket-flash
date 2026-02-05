@@ -98,14 +98,22 @@ def add_to_cart():
 
 @app.route('/checkout', methods=['GET', 'POST'])
 def checkout():
-    if 'user' not in session: return redirect(url_for('login'))
+    # 1. Protection: Ensure user is logged in
+    if 'user' not in session: 
+        return redirect(url_for('login'))
+    
     user_email = session['user']
     users = load_json(DATA_FILE, {})
 
-    # Calculate Current Cart Totals
+    # 2. Safety: Ensure the user exists in our data dictionary
+    if user_email not in users:
+        users[user_email] = {'password': '', 'address': {}}
+
+    # 3. Data Prep: Calculate current cart totals and items
     cart_data = session.get('cart', {})
     all_p = {str(p['id']): p for p in get_all_products()}
     items_to_save, total_val = [], 0
+    
     for pid, qty in cart_data.items():
         if pid in all_p:
             p = all_p[pid]
@@ -113,8 +121,8 @@ def checkout():
             items_to_save.append({'name': p['name'], 'qty': float(qty), 'subtotal': sub})
             total_val += sub
 
+    # --- HANDLE FORM SUBMISSION (Confirm Order) ---
     if request.method == 'POST':
-        # 1. Capture and Save Address
         addr = {
             'name': request.form.get('name'),
             'phone': request.form.get('phone'),
@@ -122,10 +130,12 @@ def checkout():
             'pincode': request.form.get('pincode'),
             'taluk': request.form.get('taluk')
         }
+        
+        # Save address to user profile for next time
         users[user_email]['address'] = addr
         save_json(DATA_FILE, users)
 
-        # 2. Save Order to History
+        # Generate unique Order ID and save to orders.json
         order_id = str(uuid.uuid4())[:8]
         order_item = {
             'order_id': order_id,
@@ -136,35 +146,60 @@ def checkout():
             'address': addr,
             'payment': request.form.get('payment', 'Cash on Delivery')
         }
+        
         orders = load_json(ORDERS_FILE, [])
         orders.append(order_item)
         save_json(ORDERS_FILE, orders)
 
-        # 3. SNS Alert
-        try:
-            sns_client.publish(TopicArn=SNS_TOPIC_ARN, Message=f"Order {order_id} by {addr['name']}", Subject="New Order")
-        except: pass
-
+        # Clear the cart and go to confirmation
         session.pop('cart', None)
-        return render_template('order_confirmation.html', order=order_item, payment_method=order_item['payment'])
+        
+        # IMPORTANT: Passing 'addr' as 'order' fixes your dictionary display issue
+        return render_template('order_confirmation.html', 
+                               order=addr, 
+                               payment_method=order_item['payment'], 
+                               total=total_val)
 
-    # GET: Pre-fill address
+    # --- HANDLE PAGE LOAD (Show Checkout Form) ---
+    # GET request: Load the checkout page and pre-fill address if we have it
     saved_addr = users.get(user_email, {}).get('address', {})
-    return render_template('checkout.html', address_data=saved_addr, items=items_to_save, total=total_val)
-
+    return render_template('checkout.html', 
+                           address_data=saved_addr, 
+                           items=items_to_save, 
+                           total=total_val)
 @app.route('/history')
 def history():
     if 'user' not in session: return redirect(url_for('login'))
     all_orders = load_json(ORDERS_FILE, [])
     user_orders = [o for o in all_orders if o['user_email'] == session['user']]
-    user_orders.reverse() # Newest first
+    user_orders.reverse()
     return render_template('history.html', orders=user_orders)
 
-# --- ADMIN ROUTES (Includes Edit Fix) ---
+# --- ADMIN ROUTES ---
 @app.route('/admin/dashboard')
 def admin_dashboard():
     if not session.get('is_admin'): return redirect(url_for('admin_login'))
     return render_template('admin_dashboard.html', products=get_all_products())
+
+@app.route('/admin/add', methods=['GET', 'POST'])
+def add_product():
+    if not session.get('is_admin'): 
+        return redirect(url_for('admin_login'))
+
+    if request.method == 'POST':
+        products = get_all_products()
+        new_product = {
+            "id": max([p['id'] for p in products]) + 1 if products else 1,
+            "name": request.form.get('name'),
+            "price": float(request.form.get('price')),
+            "mrp": float(request.form.get('mrp') or request.form.get('price')),
+            "image": request.form.get('image')
+        }
+        products.append(new_product)
+        save_json(PRODUCTS_FILE, products)
+        return redirect(url_for('admin_dashboard'))
+
+    return render_template('add_product.html')
 
 @app.route('/admin/edit/<int:pid>', methods=['GET', 'POST'])
 def edit_product(pid):
@@ -191,6 +226,7 @@ def admin_login():
             return redirect(url_for('admin_dashboard'))
     return render_template('admin_login.html')
 
+# --- AUTH ROUTES ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':

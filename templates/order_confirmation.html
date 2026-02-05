@@ -1,27 +1,33 @@
 {% extends 'base.html' %}
 {% block content %}
-<div style="max-width: 500px; margin: 50px auto; padding: 30px; background: white; border-radius: 8px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+<div style="max-width: 600px; margin: 50px auto; padding: 30px; background: white; border-radius: 12px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); font-family: sans-serif;">
     
-    <div style="font-size: 50px; color: #28a745; margin-bottom: 10px;">✔</div>
+    <div style="font-size: 60px; color: #28a745; margin-bottom: 10px;">✔</div>
     
-    <h2>Order Confirmed!</h2>
-    <p style="color: #666;">Thank you, {{ order.name }}. Your order has been placed successfully.</p>
+    <h2 style="color: #333; margin-bottom: 5px;">Order Confirmed!</h2>
+    <p style="color: #666;">Thank you, <strong>{{ order.name }}</strong>. Your order has been placed successfully.</p>
     
-    <div style="background: #f9f9f9; padding: 15px; margin: 20px 0; text-align: left; border-radius: 5px;">
-        <p><strong>Payment Method:</strong> {{ order.payment }}</p>
-        <p><strong>Delivery Address:</strong> {{ order.address_full }}</p>
+    <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+
+    <div style="text-align: left; line-height: 1.6;">
+        <p><strong>Payment Method:</strong> {{ payment_method }}</p>
+        
+        <div style="margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 5px solid #28a745;">
+            <h4 style="margin-top: 0; color: #2c3e50;">Delivery Address</h4>
+            
+            <p style="margin: 0; color: #444;">
+                <strong>Name:</strong> {{ order.name }}<br>
+                <strong>Address:</strong> {{ order.address }}<br>
+                <strong>Location:</strong> {{ order.taluk }}, {{ order.pincode }}<br>
+                <strong>Phone:</strong> {{ order.phone }}
+            </p>
+        </div>
     </div>
 
-    <a href="/" class="btn" style="display: inline-block; background-color: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Continue Shopping</a>
-</div>
-<div style="text-align: left; margin-top: 20px;">
-    <p><strong>Payment Method:</strong> {{ payment_method }}</p>
-    
-    <p><strong>Delivery Address:</strong><br>
-        {{ order.name }}<br>
-        {{ order.address }}, {{ order.taluk }}<br>
-        {{ order.pincode }}<br>
-        Phone: {{ order.phone }}
-    </p>
+    <div style="margin-top: 30px;">
+        <a href="/" style="display: inline-block; background-color: #28a745; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; transition: 0.3s;">Continue Shopping</a>
+        <br><br>
+        <a href="/history" style="color: #666; text-decoration: none; font-size: 0.9em;">View Order History</a>
+    </div>
 </div>
 {% endblock %}

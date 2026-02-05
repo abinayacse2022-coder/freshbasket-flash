@@ -1,7 +1,6 @@
 {% extends 'base.html' %}
 {% block content %}
 <style>
-    /* Add this small style block for the badges */
     .card { position: relative; }
     .offer-badge {
         position: absolute; top: 10px; left: 10px;
@@ -11,6 +10,11 @@
     }
     .old-price { text-decoration: line-through; color: #999; margin-right: 5px; font-size: 0.9em; }
     .new-price { color: #28a745; font-weight: bold; font-size: 1.1em; }
+    
+    /* Ensure qty input looks clean */
+    .qty { border: none; text-align: center; width: 40px; font-weight: bold; }
+    .qty-controls { display: flex; align-items: center; justify-content: center; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; width: fit-content; margin: 10px auto; }
+    .qty-controls button { background: #eee; border: none; padding: 5px 10px; cursor: pointer; }
 </style>
 
 <div class="home-hero">
@@ -44,14 +48,16 @@
                 <span class="new-price">₹{{'%.0f' % p.price}} / kg</span>
             </p>
             
-            <form method="post" action="/cart/add" class="add-form">
-              <input type="hidden" name="product_id" value="{{p.id}}">
-              <div class="qty-controls">
-                <button type="button" class="qty-decrease">-</button>
-                <input class="qty" name="qty" type="number" value="1.0" min="0.1" step="0.1">
-                <button type="button" class="qty-increase">+</button>
-              </div>
-              <button class="add-cart" type="submit">Add to Cart</button>
+            <form method="POST" action="/cart/add" class="add-form">
+                <input type="hidden" name="product_id" value="{{p.id}}">
+                
+                <div class="qty-controls">
+                    <button type="button" class="qty-decrease">-</button>
+                    <input class="qty" name="qty" type="number" value="1.0" min="0.1" step="0.1" readonly>
+                    <button type="button" class="qty-increase">+</button>
+                </div>
+
+                <button class="add-cart" type="submit">Add to Cart</button>
             </form>
           </div>
         {% endfor %}
@@ -63,4 +69,21 @@
         </div>
     {% endif %}
 </div>
+
+<script>
+document.querySelectorAll('.add-form').forEach(form => {
+    const input = form.querySelector('.qty');
+    
+    form.querySelector('.qty-increase').addEventListener('click', () => {
+        input.value = (parseFloat(input.value) + 0.1).toFixed(1);
+    });
+
+    form.querySelector('.qty-decrease').addEventListener('click', () => {
+        if (parseFloat(input.value) > 0.1) {
+            input.value = (parseFloat(input.value) - 0.1).toFixed(1);
+        }
+    });
+});
+</script>
+
 {% endblock %}

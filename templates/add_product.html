@@ -3,16 +3,21 @@
 <div style="max-width: 500px; margin: 50px auto; padding: 20px; border: 1px solid #ddd; background: white;">
     <div style="display:flex; justify-content:space-between;">
         <h2>Add Product</h2>
-        <a href="/logout" style="color:red;">Logout</a>
+        <a href="/admin/dashboard" style="color:#28a745; text-decoration:none;">View All Products</a>
     </div>
+    
     {% if success %}<div style="color: green; margin-bottom: 10px;">{{ success }}</div>{% endif %}
-    <form method="POST">
-        <label>Name</label><input type="text" name="name" required style="width:100%">
-        <label>Price</label><input type="number" step="0.01" name="price" required style="width:100%">
-        <label>MRP (Old Price)</label><input type="number" step="0.01" name="mrp" placeholder="Optional" style="width:100%">
-        <label>Image URL</label><input type="text" name="image" required style="width:100%">
-        <button type="submit" class="btn" style="width:100%; margin-top:15px;">Add Product</button>
+    
+    <form action="/admin/add" method="POST">
+        <label>Name</label><input type="text" name="name" required style="width:100%; padding:8px; margin-bottom:10px;">
+        <label>Price</label><input type="number" step="0.01" name="price" required style="width:100%; padding:8px; margin-bottom:10px;">
+        <label>MRP (Old Price)</label><input type="number" step="0.01" name="mrp" placeholder="Optional" style="width:100%; padding:8px; margin-bottom:10px;">
+        <label>Image URL</label><input type="text" name="image" required style="width:100%; padding:8px; margin-bottom:10px;">
+        
+        <button type="submit" class="btn" style="width:100%; margin-top:15px; background:#28a745; color:white; border:none; padding:10px; cursor:pointer;">
+            Save Product
+        </button>
     </form>
-    <br><a href="/">Back to Home</a>
+    <br><a href="/" style="text-decoration:none; color:#666;">Back to Home</a>
 </div>
 {% endblock %}

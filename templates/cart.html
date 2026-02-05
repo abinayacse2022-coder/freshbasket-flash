@@ -1,38 +1,47 @@
 {% extends 'base.html' %}
 {% block content %}
-  <h1>Your Cart</h1>
-  {% if items %}
-    <table class="cart-table">
-      <tr><th>Product</th><th>Price</th><th>Qty</th><th>Subtotal</th><th></th></tr>
-      {% for it in items %}
-        <tr data-id="{{it.id}}">
-          <td class="p-info"><img src="{{it.image}}" alt="{{it.name}}" loading="lazy" onerror="this.onerror=null;this.src='/static/images/placeholder.svg'"> {{it.name}}</td>
-          <td>₹{{'%.2f' % it.price}} / kg</td>
-          <td>
-            <form method="post" action="/cart/update" class="update-form">
-              <input type="hidden" name="product_id" value="{{it.id}}">
-              <div class="qty-controls">
-                <button type="button" class="qty-decrease">-</button>
-                <input class="qty" name="qty" type="number" value="{{'%.2f' % it.qty}}" min="0.1" step="0.1">
-                <button type="button" class="qty-increase">+</button>
-              </div>
-              <button type="submit">Update</button>
-            </form>
-          </td>
-          <td>₹{{'%.2f' % it.subtotal}}</td>
-          <td>
-            <form method="post" action="/cart/update">
-              <input type="hidden" name="product_id" value="{{it.id}}">
-              <input type="hidden" name="qty" value="0">
-              <button type="submit">Remove</button>
-            </form>
-          </td>
-        </tr>
-      {% endfor %}
-    </table>
-    <div class="cart-summary">Total: <strong>₹{{'%.2f' % total}}</strong></div>
-    <a href="/checkout" class="btn">Proceed to Checkout</a>
-  {% else %}
-    <p>Your cart is empty.</p>
-  {% endif %}
+<div style="max-width: 800px; margin: 40px auto; padding: 20px; font-family: sans-serif;">
+    <h2 style="color: #333;">Your Shopping Cart</h2>
+    <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 20px;">
+
+    {% if items %}
+        {% for item in items %}
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f1f1; padding: 15px 0;">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <img src="{{ item.image }}" alt="{{ item.name }}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 5px;" onerror="this.src='https://via.placeholder.com/60?text=Fruit'">
+                    <div>
+                        <h4 style="margin: 0; color: #2c3e50;">{{ item.name }}</h4>
+                        <p style="margin: 0; color: #7f8c8d; font-size: 0.9em;">Qty: {{ item.qty }} kg</p>
+                    </div>
+                </div>
+                <div>
+                    <strong style="color: #27ae60; font-size: 1.1em;">₹{{ '%.2f' % item.subtotal }}</strong>
+                </div>
+            </div>
+        {% endfor %}
+
+        <div style="text-align: right; margin-top: 30px; padding: 25px; background: #fdfdfd; border: 1px solid #f1f1f1; border-radius: 12px;">
+            <h3 style="margin: 0 0 15px 0; color: #333;">Total: <span style="color: #28a745;">₹{{ '%.2f' % total }}</span></h3>
+            
+            <div style="display: flex; gap: 12px; justify-content: flex-end; align-items: center;">
+                <a href="/" style="padding: 10px 20px; color: #7f8c8d; text-decoration: none; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95em; transition: 0.3s;">
+                    Keep Shopping
+                </a>
+                
+                <a href="{{ url_for('checkout') }}" 
+                   style="background: #28a745; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 1em; box-shadow: 0 4px 6px rgba(40, 167, 69, 0.2); transition: 0.3s;">
+                   Proceed to Checkout
+                </a>
+            </div>
+        </div>
+
+    {% else %}
+        <div style="text-align: center; padding: 60px 20px; background: #fff; border-radius: 12px; border: 1px dashed #ddd;">
+            <div style="font-size: 50px; margin-bottom: 15px;">🛒</div>
+            <h3 style="color: #95a5a6;">Your cart is empty</h3>
+            <p style="color: #bdc3c7; margin-bottom: 25px;">Add some fresh items to get started!</p>
+            <a href="/" style="background: #28a745; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">Go Shopping</a>
+        </div>
+    {% endif %}
+</div>
 {% endblock %}
