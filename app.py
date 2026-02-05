@@ -221,9 +221,16 @@ def edit_product(pid):
 @app.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
     if request.method == 'POST':
-        if request.form.get('username') == ADMIN_USERNAME and check_password_hash(ADMIN_PASSWORD_HASH, request.form.get('password')):
+        user = request.form.get('username')
+        pwd = request.form.get('password')
+
+        # Matches the ADMIN_USERNAME and ADMIN_PASSWORD_HASH defined in your config
+        if user == ADMIN_USERNAME and check_password_hash(ADMIN_PASSWORD_HASH, pwd):
             session['is_admin'] = True
             return redirect(url_for('admin_dashboard'))
+        else:
+            return render_template('admin_login.html', error="Invalid admin credentials")
+
     return render_template('admin_login.html')
 
 # --- AUTH ROUTES ---

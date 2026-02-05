@@ -382,5 +382,26 @@
             "taluk": "Pallipet"
         },
         "payment": "Cash on Delivery"
+    },
+    {
+        "order_id": "c2b43b57",
+        "user_email": "abinayacse2022@grt.edu.in",
+        "date": "2026-02-05 12:17",
+        "items": [
+            {
+                "name": "Strawberry",
+                "qty": 1.0,
+                "subtotal": 150.0
+            }
+        ],
+        "total": 150.0,
+        "address": {
+            "name": "Abinaya",
+            "phone": "7094544008",
+            "address": "10,vanivilasapuram road,kk nagar,podaturpet",
+            "pincode": "631208",
+            "taluk": "Pallipet"
+        },
+        "payment": "Cash on Delivery"
     }
 ]
