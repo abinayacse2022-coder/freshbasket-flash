@@ -1,53 +1,270 @@
 {% extends 'base.html' %}
 {% block content %}
-<div style="max-width: 800px; margin: 40px auto; padding: 20px; font-family: sans-serif;">
-    <h2 style="color: #333;">Your Shopping Cart</h2>
-    <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 20px;">
+<style>
+    .cart-wrapper {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 40px 20px;
+    }
 
-    {% if items %}
-        {% for item in items %}
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f1f1; padding: 15px 0;">
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <img src="{{ item.image }}" alt="{{ item.name }}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 5px;" onerror="this.src='https://via.placeholder.com/60?text=Fruit'">
-                    <div>
-                        <h4 style="margin: 0; color: #2c3e50;">{{ item.name }}</h4>
-                        <p style="margin: 0; color: #7f8c8d; font-size: 0.9em;">Qty: {{ item.qty }} kg</p>
-                    </div>
-                </div>
-                <div style="text-align: right;">
-                    <strong style="color: #27ae60; font-size: 1.1em;">₹{{ '%.2f' % item.subtotal }}</strong>
-                    <div style="margin-top: 6px;">
-                        <a href="{{ url_for('remove_from_cart', pid=item.id) }}"
-                           style="color: #c0392b; text-decoration: none; font-size: 0.9em;">
-                          Remove
-                        </a>
-                    </div>
-                </div>
-            </div>
-        {% endfor %}
+    .cart-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
 
-        <div style="text-align: right; margin-top: 30px; padding: 25px; background: #fdfdfd; border: 1px solid #f1f1f1; border-radius: 12px;">
-            <h3 style="margin: 0 0 15px 0; color: #333;">Total: <span style="color: #28a745;">₹{{ '%.2f' % total }}</span></h3>
-            
-            <div style="display: flex; gap: 12px; justify-content: flex-end; align-items: center;">
-                <a href="/" style="padding: 10px 20px; color: #7f8c8d; text-decoration: none; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95em; transition: 0.3s;">
-                    Keep Shopping
-                </a>
+    .cart-header {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        padding: 30px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    .cart-header h1 {
+        margin: 0;
+        color: #333;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 2em;
+    }
+
+    .cart-item {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+        border-left: 5px solid #667eea;
+        transition: all 0.3s ease;
+    }
+
+    .cart-item:hover {
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .item-image {
+        width: 80px;
+        height: 80px;
+        object-fit: cover;
+        border-radius: 8px;
+    }
+
+    .item-details {
+        flex: 1;
+    }
+
+    .item-name {
+        font-weight: 600;
+        color: #333;
+        margin: 0 0 5px 0;
+        font-size: 1.1em;
+    }
+
+    .item-qty {
+        color: #999;
+        font-size: 0.9em;
+        margin: 0;
+    }
+
+    .item-price {
+        text-align: right;
+        flex-shrink: 0;
+    }
+
+    .price-value {
+        display: block;
+        font-size: 1.5em;
+        font-weight: bold;
+        color: #667eea;
+    }
+
+    .remove-link {
+        display: block;
+        color: #dc3545;
+        text-decoration: none;
+        font-size: 0.9em;
+        margin-top: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .remove-link:hover {
+        color: #c82333;
+    }
+
+    .cart-empty {
+        background: white;
+        border-radius: 12px;
+        padding: 60px 30px;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .empty-icon {
+        font-size: 4em;
+        margin-bottom: 20px;
+    }
+
+    .cart-empty h3 {
+        color: #333;
+        margin: 0 0 10px 0;
+    }
+
+    .cart-empty p {
+        color: #666;
+        margin: 0 0 20px 0;
+    }
+
+    .cart-summary {
+        background: white;
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        margin-top: 20px;
+    }
+
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 12px 0;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .summary-row:last-of-type {
+        border-bottom: none;
+    }
+
+    .summary-total {
+        display: flex;
+        justify-content: space-between;
+        padding: 15px 0;
+        border-top: 2px solid #e0e0e0;
+        font-size: 1.3em;
+        font-weight: bold;
+        color: #667eea;
+    }
+
+    .button-group {
+        display: flex;
+        gap: 12px;
+        margin-top: 20px;
+        flex-wrap: wrap;
+    }
+
+    .btn-primary {
+        flex: 1;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 14px;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 700;
+        font-size: 1em;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        min-width: 150px;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+        flex: 1;
+        background: white;
+        color: #667eea;
+        padding: 14px;
+        border: 2px solid #667eea;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 700;
+        font-size: 1em;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        min-width: 150px;
+    }
+
+    .btn-secondary:hover {
+        background: #667eea;
+        color: white;
+    }
+
+    .btn-shop {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 12px 30px;
+        text-decoration: none;
+        border-radius: 8px;
+        display: inline-block;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-shop:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+</style>
+
+<div class="cart-wrapper">
+    <div class="cart-container">
+        <!-- Header -->
+        <div class="cart-header">
+            <h1>🛒 Shopping Cart</h1>
+        </div>
+
+        {% if items %}
+            <!-- Cart Items -->
+            {% for item in items %}
+            <div class="cart-item">
+                <img src="{{ item.image }}" alt="{{ item.name }}" class="item-image" onerror="this.src='https://via.placeholder.com/80?text=Product'">
                 
-                <a href="{{ url_for('checkout') }}" 
-                   style="background: #28a745; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 1em; box-shadow: 0 4px 6px rgba(40, 167, 69, 0.2); transition: 0.3s;">
-                   Proceed to Checkout
-                </a>
-            </div>
-        </div>
+                <div class="item-details">
+                    <h3 class="item-name">{{ item.name }}</h3>
+                    <p class="item-qty">📦 Quantity: {{ '%.1f' % item.qty }} kg</p>
+                </div>
 
-    {% else %}
-        <div style="text-align: center; padding: 60px 20px; background: #fff; border-radius: 12px; border: 1px dashed #ddd;">
-            <div style="font-size: 50px; margin-bottom: 15px;">🛒</div>
-            <h3 style="color: #95a5a6;">Your cart is empty</h3>
-            <p style="color: #bdc3c7; margin-bottom: 25px;">Add some fresh items to get started!</p>
-            <a href="/" style="background: #28a745; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">Go Shopping</a>
+                <div class="item-price">
+                    <span class="price-value">₹{{ '%.2f' % item.subtotal }}</span>
+                    <a href="{{ url_for('remove_from_cart', pid=item.id) }}" class="remove-link">🗑️ Remove</a>
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- Summary -->
+            <div class="cart-summary">
+                <div class="summary-total">
+                    <span>💰 Total Amount:</span>
+                    <span>₹{{ '%.2f' % total }}</span>
+                </div>
+
+                <div class="button-group">
+                    <a href="/" class="btn-secondary">← Continue Shopping</a>
+                    <a href="{{ url_for('checkout') }}" class="btn-primary">Proceed to Checkout →</a>
+                </div>
+            </div>
+
+        {% else %}
+        <div class="cart-empty">
+            <div class="empty-icon">🛒</div>
+            <h3>Your cart is empty</h3>
+            <p>Add some fresh fruits and vegetables to get started!</p>
+            <a href="/" class="btn-shop">🛍️ Start Shopping</a>
         </div>
-    {% endif %}
+        {% endif %}
+    </div>
 </div>
 {% endblock %}

@@ -1,38 +1,175 @@
 {% extends 'base.html' %}
 {% block content %}
 <style>
-    .card { position: relative; }
+    /* Background styling */
+    .home-wrapper {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background-image: 
+            linear-gradient(135deg, rgba(102, 126, 234, 0.9) 0%, rgba(118, 75, 162, 0.9) 100%),
+            url('https://images.unsplash.com/photo-1542838132-92c53300491e?w=1600');
+        background-size: cover;
+        background-attachment: fixed;
+        background-position: center;
+        min-height: 100vh;
+        padding: 40px 20px;
+    }
+    
+    .hero-section {
+        text-align: center;
+        color: white;
+        margin-bottom: 40px;
+        padding: 60px 20px;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+    
+    .hero-section h1 {
+        font-size: 3em;
+        margin: 0 0 20px 0;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    
+    .hero-section p {
+        font-size: 1.3em;
+        opacity: 0.95;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+    }
+    
+    .card { 
+        position: relative;
+        background: white;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+    }
+    
     .offer-badge {
-        position: absolute; top: 10px; left: 10px;
-        background: #e74c3c; color: white;
-        padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.8em;
+        position: absolute; 
+        top: 10px; 
+        left: 10px;
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        padding: 6px 12px; 
+        border-radius: 20px; 
+        font-weight: bold; 
+        font-size: 0.8em;
         z-index: 10;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     }
-    .old-price { text-decoration: line-through; color: #999; margin-right: 5px; font-size: 0.9em; }
-    .new-price { color: #28a745; font-weight: bold; font-size: 1.1em; }
-    .qty { border: none; text-align: center; width: 40px; font-weight: bold; }
-    .qty-controls { display: flex; align-items: center; justify-content: center; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; width: fit-content; margin: 10px auto; }
-    .qty-controls button { background: #eee; border: none; padding: 5px 10px; cursor: pointer; transition: background 0.2s; }
-    .qty-controls button:hover { background: #ddd; }
+    
+    .old-price { 
+        text-decoration: line-through; 
+        color: #999; 
+        margin-right: 5px; 
+        font-size: 0.9em; 
+    }
+    
+    .new-price { 
+        color: #28a745; 
+        font-weight: bold; 
+        font-size: 1.1em; 
+    }
+    
+    .qty { 
+        border: none; 
+        text-align: center; 
+        width: 40px; 
+        font-weight: bold; 
+    }
+    
+    .qty-controls { 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        margin-bottom: 10px; 
+        border: 1px solid #ddd; 
+        border-radius: 20px; 
+        width: fit-content; 
+        margin: 10px auto;
+        overflow: hidden;
+    }
+    
+    .qty-controls button { 
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none; 
+        padding: 8px 12px; 
+        cursor: pointer; 
+        transition: background 0.2s;
+        font-weight: bold;
+    }
+    
+    .qty-controls button:hover { 
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    }
+    
     .add-cart {
-      transition: all 0.2s ease;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 25px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
     }
+    
     .add-cart:hover {
-      transform: scale(1.05);
+        transform: scale(1.05);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
     }
+    
     .add-cart.loading {
-      opacity: 0.6;
-      pointer-events: none;
+        opacity: 0.6;
+        pointer-events: none;
+    }
+    
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 25px;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+    
+    .search-section {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    
+    .search-badge {
+        display: inline-block;
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        padding: 15px 30px;
+        border-radius: 30px;
+        color: white;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
     }
 </style>
 
-<div class="home-hero">
-    <div style="margin-bottom: 20px;">
+<div class="home-wrapper">
+    <div class="hero-section">
         {% if query %}
-            <h1>Search results for "{{ query }}"</h1>
-            <a href="/" style="text-decoration: none; color: #28a745;">← Clear Search</a>
+            <div class="search-section">
+                <div class="search-badge">
+                    <h1>🔍 Search Results</h1>
+                    <p>Showing results for "{{ query }}"</p>
+                    <a href="/" style="color: white; text-decoration: none; font-size: 0.9em; opacity: 0.9;">
+                        ← Clear Search
+                    </a>
+                </div>
+            </div>
         {% else %}
-            <h1>Fresh fruits & vegetables</h1>
+            <h1>🌱 Fresh Fruits & Vegetables</h1>
+            <p>Farm-fresh organic produce delivered to your doorstep</p>
+            <p style="font-size: 0.9em; margin-top: 10px;">🚚 Free delivery on orders above ₹500</p>
         {% endif %}
     </div>
 
@@ -44,29 +181,36 @@
                 {% set discount = ((p.mrp - p.price) / p.mrp * 100) %}
                 <div class="offer-badge">{{ '%.0f' % discount }}% OFF</div>
             {% endif %}
-            <img src="{{p.image}}" alt="{{p.name}}" loading="lazy" onerror="this.src='/static/images/placeholder.svg'">
-            <h3>{{p.name}}</h3>
-            <p class="price">
+            
+            <img src="{{p.image}}" alt="{{p.name}}" loading="lazy" onerror="this.src='https://via.placeholder.com/200x150?text={{ p.name }}'">
+            
+            <h3 style="margin: 12px 0 8px 0;">{{p.name}}</h3>
+            
+            <p class="price" style="margin: 8px 0;">
                 {% if p.mrp and p.mrp > p.price %}
                     <span class="old-price">₹{{'%.0f' % p.mrp}}</span>
                 {% endif %}
                 <span class="new-price">₹{{'%.0f' % p.price}} / kg</span>
             </p>
+            
             <form class="add-form" data-product-id="{{p.id}}" data-product-name="{{p.name}}">
                 <div class="qty-controls">
-                    <button type="button" class="qty-decrease">-</button>
+                    <button type="button" class="qty-decrease">−</button>
                     <input class="qty" name="qty" type="text" value="1.0" readonly>
                     <button type="button" class="qty-increase">+</button>
                 </div>
-                <button class="add-cart" type="submit">Add to Cart</button>
+                <button class="add-cart" type="submit">🛒 Add to Cart</button>
             </form>
           </div>
         {% endfor %}
         </div>
     {% else %}
-        <div style="text-align: center; padding: 50px;">
-            <h3>No products found</h3>
-            <a href="/" class="btn">View All Products</a>
+        <div style="text-align: center; padding: 60px; background: rgba(255, 255, 255, 0.9); border-radius: 20px; max-width: 500px; margin: 0 auto;">
+            <div style="font-size: 80px; margin-bottom: 20px;">😔</div>
+            <h3 style="color: #333;">No products found{% if query %} for "{{ query }}"{% endif %}</h3>
+            <a href="/" class="btn" style="display: inline-block; margin-top: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: bold;">
+                View All Products
+            </a>
         </div>
     {% endif %}
 </div>
@@ -109,7 +253,7 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .finally(() => {
                 submitBtn.classList.remove('loading');
-                submitBtn.textContent = 'Add to Cart';
+                submitBtn.textContent = '🛒 Add to Cart';
             });
         });
     });

@@ -1,33 +1,197 @@
 {% extends 'base.html' %}
 {% block content %}
-<div style="max-width: 600px; margin: 50px auto; padding: 30px; background: white; border-radius: 12px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.1); font-family: sans-serif;">
-    
-    <div style="font-size: 60px; color: #28a745; margin-bottom: 10px;">✔</div>
-    
-    <h2 style="color: #333; margin-bottom: 5px;">Order Confirmed!</h2>
-    <p style="color: #666;">Thank you, <strong>{{ order.name }}</strong>. Your order has been placed successfully.</p>
-    
-    <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+<style>
+    .confirmation-wrapper {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 40px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
 
-    <div style="text-align: left; line-height: 1.6;">
-        <p><strong>Payment Method:</strong> {{ payment_method }}</p>
-        
-        <div style="margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 5px solid #28a745;">
-            <h4 style="margin-top: 0; color: #2c3e50;">Delivery Address</h4>
-            
-            <p style="margin: 0; color: #444;">
+    .confirmation-container {
+        max-width: 600px;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        padding: 40px;
+        border-radius: 20px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        text-align: center;
+    }
+
+    .success-icon {
+        font-size: 4em;
+        margin-bottom: 20px;
+        animation: scaleIn 0.5s ease;
+    }
+
+    .confirmation-header h2 {
+        margin: 0 0 8px 0;
+        color: #333;
+        font-size: 1.8em;
+    }
+
+    .confirmation-header p {
+        color: #666;
+        margin: 0 0 30px 0;
+        font-size: 1.05em;
+    }
+
+    .address-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 12px;
+        margin: 20px 0;
+        text-align: left;
+    }
+
+    .address-card h4 {
+        margin: 0 0 15px 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .address-card p {
+        margin: 8px 0;
+        font-size: 0.95em;
+        line-height: 1.6;
+    }
+
+    .order-details {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 12px;
+        margin: 20px 0;
+        border-left: 5px solid #667eea;
+        text-align: left;
+    }
+
+    .order-detail-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .order-detail-row:last-child {
+        border-bottom: none;
+    }
+
+    .order-detail-row strong {
+        color: #333;
+    }
+
+    .payment-info {
+        background: #e8f4f8;
+        color: #0284c7;
+        padding: 12px;
+        border-radius: 8px;
+        margin: 15px 0;
+        font-size: 0.95em;
+    }
+
+    .button-group {
+        display: flex;
+        gap: 12px;
+        margin-top: 30px;
+        flex-wrap: wrap;
+    }
+
+    .btn-primary {
+        flex: 1;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 12px 20px;
+        text-decoration: none;
+        border-radius: 10px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        display: inline-block;
+        text-align: center;
+        min-width: 150px;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+        flex: 1;
+        background: white;
+        color: #667eea;
+        padding: 12px 20px;
+        text-decoration: none;
+        border-radius: 10px;
+        font-weight: 600;
+        border: 2px solid #667eea;
+        transition: all 0.3s ease;
+        display: inline-block;
+        text-align: center;
+        min-width: 150px;
+    }
+
+    .btn-secondary:hover {
+        background: #667eea;
+        color: white;
+    }
+
+    @keyframes scaleIn {
+        from {
+            transform: scale(0.5);
+            opacity: 0;
+        }
+        to {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+</style>
+
+<div class="confirmation-wrapper">
+    <div class="confirmation-container">
+        <!-- Success Icon -->
+        <div class="success-icon">✅</div>
+
+        <!-- Header -->
+        <div class="confirmation-header">
+            <h2>Order Confirmed!</h2>
+            <p>Thank you, <strong>{{ order.name }}</strong>. Your order has been placed successfully.</p>
+        </div>
+
+        <!-- Delivery Address -->
+        <div class="address-card">
+            <h4>📍 Delivery Address</h4>
+            <p>
                 <strong>Name:</strong> {{ order.name }}<br>
                 <strong>Address:</strong> {{ order.address }}<br>
                 <strong>Location:</strong> {{ order.taluk }}, {{ order.pincode }}<br>
                 <strong>Phone:</strong> {{ order.phone }}
             </p>
         </div>
-    </div>
 
-    <div style="margin-top: 30px;">
-        <a href="/" style="display: inline-block; background-color: #28a745; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; transition: 0.3s;">Continue Shopping</a>
-        <br><br>
-        <a href="/history" style="color: #666; text-decoration: none; font-size: 0.9em;">View Order History</a>
+        <!-- Order Details -->
+        <div class="order-details">
+            <h4 style="margin-top: 0;">📦 Order Details</h4>
+            <div class="order-detail-row">
+                <span>Payment Method:</span>
+                <strong>{{ payment_method }}</strong>
+            </div>
+        </div>
+
+        <!-- Payment Info -->
+        <div class="payment-info">
+            💳 Your order will be delivered within 24 hours.
+        </div>
+
+        <!-- Buttons -->
+        <div class="button-group">
+            <a href="/" class="btn-primary">🛍️ Continue Shopping</a>
+            <a href="/history" class="btn-secondary">📦 View Orders</a>
+        </div>
     </div>
 </div>
 {% endblock %}

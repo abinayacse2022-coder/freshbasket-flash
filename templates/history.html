@@ -1,51 +1,229 @@
 {% extends 'base.html' %}
 {% block content %}
-<div style="max-width: 800px; margin: 40px auto; padding: 20px;">
-    <h2>Your Order History</h2>
-    <hr>
+<style>
+    .history-wrapper {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 40px 20px;
+    }
 
-    {% if orders %}
-        {% for order in orders %}
-        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; border-left: 5px solid #28a745;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <h4 style="margin: 0;">Order {% if order.get('order_id') %}#{{ order.order_id }}{% else %}#{{ loop.index }}{% endif %}</h4>
-                    <small style="color: #666;">Placed on: {{ order.get('date', 'N/A') }}</small>
-                </div>
-                <div style="text-align: right;">
-                    <strong style="font-size: 1.2em; color: #28a745;">₹{{ '%.2f' | format(order.get('total', 0)) }}</strong>
-                </div>
-            </div>
-            
-            <div style="margin-top: 15px; font-size: 0.9em; color: #444;">
-                <strong>Items:</strong>
-                <ul style="margin: 5px 0;">
-                    {% for item in order.get('items', []) %}
-                        <li>{{ item.get('name', 'Item') }} ({{ '%.1f' | format(item.get('qty', 0)) }} kg) - ₹{{ '%.2f' | format(item.get('subtotal', 0)) }}</li>
-                    {% endfor %}
-                </ul>
-            </div>
+    .history-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
 
-            {% if order.get('address') %}
-            <div style="margin-top: 10px; font-size: 0.85em; background: #f9f9f9; padding: 10px; border-radius: 4px;">
-                <strong>Delivered to:</strong> {{ order.address.get('name', 'N/A') }}, {{ order.address.get('taluk', 'N/A') }}
-                <br>
-                <small>Phone: {{ order.address.get('phone', 'N/A') }}</small>
-            </div>
-            {% endif %}
+    .history-header {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        padding: 30px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
 
-            {% if order.get('payment') %}
-            <div style="margin-top: 10px;">
-                <small><strong>Payment:</strong> {{ order.payment }}</small>
-            </div>
-            {% endif %}
+    .history-header h1 {
+        margin: 0;
+        color: #333;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 2em;
+    }
+
+    .order-card {
+        background: white;
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+        border-left: 5px solid #667eea;
+        transition: transform 0.3s ease;
+    }
+
+    .order-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .order-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+
+    .order-info h3 {
+        margin: 0;
+        color: #333;
+        font-size: 1.1em;
+    }
+
+    .order-info small {
+        display: block;
+        color: #999;
+        margin-top: 5px;
+    }
+
+    .order-total {
+        text-align: right;
+    }
+
+    .order-total strong {
+        font-size: 1.5em;
+        color: #667eea;
+        display: block;
+    }
+
+    .order-status {
+        font-size: 0.85em;
+        color: #28a745;
+        font-weight: 600;
+    }
+
+    .items-section {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 15px 0;
+    }
+
+    .items-section strong {
+        display: block;
+        margin-bottom: 12px;
+        color: #333;
+    }
+
+    .items-list {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .items-list li {
+        padding: 8px 0;
+        border-bottom: 1px solid #e0e0e0;
+        font-size: 0.95em;
+        color: #555;
+    }
+
+    .items-list li:last-child {
+        border-bottom: none;
+    }
+
+    .address-section {
+        background: #e8f4f8;
+        color: #0284c7;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 4px solid #0ea5e9;
+        font-size: 0.95em;
+    }
+
+    .address-section strong {
+        display: block;
+        margin-bottom: 5px;
+    }
+
+    .empty-state {
+        background: white;
+        border-radius: 12px;
+        padding: 60px 30px;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .empty-icon {
+        font-size: 4em;
+        margin-bottom: 20px;
+    }
+
+    .empty-state h3 {
+        color: #333;
+        margin: 0 0 10px 0;
+    }
+
+    .empty-state p {
+        color: #666;
+        margin: 0 0 20px 0;
+    }
+
+    .btn-shop {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 12px 30px;
+        text-decoration: none;
+        border-radius: 8px;
+        display: inline-block;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-shop:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+</style>
+
+<div class="history-wrapper">
+    <div class="history-container">
+        <!-- Header -->
+        <div class="history-header">
+            <h1>📦 Your Order History</h1>
         </div>
-        {% endfor %}
-    {% else %}
-        <div style="text-align: center; padding: 40px;">
-            <p>You haven't placed any orders yet.</p>
-            <a href="/" class="btn" style="background: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Start Shopping</a>
+
+        {% if orders %}
+            {% for order in orders %}
+            <div class="order-card">
+                <!-- Order Header -->
+                <div class="order-header">
+                    <div class="order-info">
+                        <h3>Order #{% if order.get('order_id') %}{{ order.order_id }}{% else %}{{ loop.index }}{% endif %}</h3>
+                        <small>📅 {{ order.get('date', 'N/A') }}</small>
+                    </div>
+                    <div class="order-total">
+                        <strong>₹{{ '%.2f' | format(order.get('total', 0)) }}</strong>
+                        <div class="order-status">✓ Completed</div>
+                    </div>
+                </div>
+
+                <!-- Items -->
+                <div class="items-section">
+                    <strong>📋 Items Ordered:</strong>
+                    <ul class="items-list">
+                        {% for item in order.get('items', []) %}
+                            <li>{{ item.get('name', 'Item') }} ({{ '%.1f' | format(item.get('qty', 0)) }} kg) - ₹{{ '%.2f' | format(item.get('subtotal', 0)) }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <!-- Address -->
+                {% if order.get('address') %}
+                <div class="address-section">
+                    <strong>📍 Delivered to:</strong>
+                    {{ order.address.get('name', 'N/A') }}, {{ order.address.get('taluk', 'N/A') }}
+                    <br>
+                    <small>📞 {{ order.address.get('phone', 'N/A') }}</small>
+                </div>
+                {% endif %}
+
+                <!-- Payment -->
+                {% if order.get('payment') %}
+                <div style="margin-top: 15px; font-size: 0.9em;">
+                    <strong>💳 Payment:</strong> {{ order.payment }}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📦</div>
+            <h3>No Orders Yet</h3>
+            <p>You haven't placed any orders. Start shopping now!</p>
+            <a href="/" class="btn-shop">🛍️ Shop Now</a>
         </div>
-    {% endif %}
+        {% endif %}
+    </div>
 </div>
 {% endblock %}

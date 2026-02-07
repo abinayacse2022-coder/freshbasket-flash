@@ -1,23 +1,326 @@
 {% extends 'base.html' %}
+
 {% block content %}
-<div style="max-width: 500px; margin: 50px auto; padding: 20px; border: 1px solid #ddd; background: white;">
-    <div style="display:flex; justify-content:space-between;">
-        <h2>Add Product</h2>
-        <a href="/admin/dashboard" style="color:#28a745; text-decoration:none;">View All Products</a>
+<style>
+    .add-wrapper {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 40px 20px;
+    }
+
+    .add-container {
+        max-width: 600px;
+        margin: 0 auto;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        padding: 40px;
+        border-radius: 20px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    .add-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #e0e0e0;
+    }
+
+    .add-header h2 {
+        margin: 0;
+        font-size: 1.8em;
+        color: #333;
+    }
+
+    .add-header a {
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .add-header a:hover {
+        color: #764ba2;
+        gap: 10px;
+    }
+
+    .success-message {
+        background: #d4edda;
+        color: #155724;
+        padding: 12px 15px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        border-left: 4px solid #28a745;
+        animation: slideIn 0.3s ease;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        color: #333;
+        font-weight: 600;
+        font-size: 0.95em;
+    }
+
+    .form-group input {
+        width: 100%;
+        padding: 12px 15px;
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        font-size: 1em;
+        transition: all 0.3s ease;
+        box-sizing: border-box;
+        font-family: inherit;
+    }
+
+    .form-group input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        background: rgba(102, 126, 234, 0.02);
+    }
+
+    .form-group small {
+        display: block;
+        margin-top: 6px;
+        color: #999;
+        font-size: 0.85em;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+    }
+
+    .info-box {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px;
+        border-radius: 10px;
+        margin: 20px 0;
+        font-size: 0.9em;
+    }
+
+    .info-box strong {
+        display: block;
+        margin-bottom: 8px;
+    }
+
+    .button-group {
+        display: flex;
+        gap: 12px;
+        margin-top: 30px;
+    }
+
+    .btn-save {
+        flex: 2;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 1em;
+        font-weight: 700;
+        transition: all 0.3s ease;
+    }
+
+    .btn-save:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-cancel {
+        flex: 1;
+        background: #e0e0e0;
+        color: #333;
+        text-align: center;
+        text-decoration: none;
+        padding: 14px;
+        border-radius: 10px;
+        font-size: 1em;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+    }
+
+    .btn-cancel:hover {
+        background: #d0d0d0;
+        transform: translateY(-2px);
+    }
+
+    .discount-calc {
+        background: #f0f4ff;
+        padding: 12px;
+        border-radius: 8px;
+        margin-top: 8px;
+        font-size: 0.9em;
+        color: #667eea;
+        border-left: 4px solid #667eea;
+    }
+
+    .back-link {
+        text-align: center;
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #e0e0e0;
+    }
+
+    .back-link a {
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .back-link a:hover {
+        color: #764ba2;
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+
+<div class="add-wrapper">
+    <div class="add-container">
+        <div class="add-header">
+            <h2>➕ Add Product</h2>
+            <a href="/admin/dashboard">📋 View All</a>
+        </div>
+
+        {% if success %}
+            <div class="success-message">
+                ✅ {{ success }}
+            </div>
+        {% endif %}
+
+        <form action="/admin/add" method="POST">
+            <!-- Product Name -->
+            <div class="form-group">
+                <label for="name">Product Name *</label>
+                <input 
+                    type="text" 
+                    id="name"
+                    name="name" 
+                    required
+                    placeholder="e.g., Fresh Apples, Organic Tomatoes"
+                    autofocus
+                >
+                <small>Name of the fruit or vegetable</small>
+            </div>
+
+            <!-- Price and MRP in Row -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="price">Selling Price (₹) *</label>
+                    <input 
+                        type="number" 
+                        id="price"
+                        step="0.01" 
+                        name="price" 
+                        required
+                        placeholder="0.00"
+                        min="0"
+                        onchange="calculateDiscount()"
+                        oninput="calculateDiscount()"
+                    >
+                    <small>Price per unit/kg</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="mrp">MRP / Original Price (₹)</label>
+                    <input 
+                        type="number" 
+                        id="mrp"
+                        step="0.01" 
+                        name="mrp" 
+                        placeholder="0.00"
+                        min="0"
+                        onchange="calculateDiscount()"
+                        oninput="calculateDiscount()"
+                    >
+                    <small>Leave empty if no discount</small>
+                </div>
+            </div>
+
+            <!-- Discount Display -->
+            <div id="discount-display"></div>
+
+            <!-- Info Box -->
+            <div class="info-box">
+                <strong>💡 How Discounts Work:</strong>
+                Enter an MRP higher than the selling price to show customers a discount. For example: MRP ₹100, Price ₹75 = 25% OFF
+            </div>
+
+            <!-- Image URL -->
+            <div class="form-group">
+                <label for="image">Image URL *</label>
+                <input 
+                    type="text" 
+                    id="image"
+                    name="image" 
+                    required
+                    placeholder="https://example.com/fruit-image.jpg"
+                >
+                <small>Link to a product image (JPEG/PNG from Unsplash, Pexels, etc.)</small>
+            </div>
+
+            <!-- Buttons -->
+            <div class="button-group">
+                <button type="submit" class="btn-save">💾 Add Product</button>
+                <a href="/admin/dashboard" class="btn-cancel">Back</a>
+            </div>
+        </form>
+
+        <div class="back-link">
+            <a href="/">← Back to Store</a>
+        </div>
     </div>
-    
-    {% if success %}<div style="color: green; margin-bottom: 10px;">{{ success }}</div>{% endif %}
-    
-    <form action="/admin/add" method="POST">
-        <label>Name</label><input type="text" name="name" required style="width:100%; padding:8px; margin-bottom:10px;">
-        <label>Price</label><input type="number" step="0.01" name="price" required style="width:100%; padding:8px; margin-bottom:10px;">
-        <label>MRP (Old Price)</label><input type="number" step="0.01" name="mrp" placeholder="Optional" style="width:100%; padding:8px; margin-bottom:10px;">
-        <label>Image URL</label><input type="text" name="image" required style="width:100%; padding:8px; margin-bottom:10px;">
-        
-        <button type="submit" class="btn" style="width:100%; margin-top:15px; background:#28a745; color:white; border:none; padding:10px; cursor:pointer;">
-            Save Product
-        </button>
-    </form>
-    <br><a href="/" style="text-decoration:none; color:#666;">Back to Home</a>
 </div>
+
+<script>
+    function calculateDiscount() {
+        const priceInput = document.getElementById('price');
+        const mrpInput = document.getElementById('mrp');
+        const discountDisplay = document.getElementById('discount-display');
+        
+        const price = parseFloat(priceInput.value) || 0;
+        const mrp = parseFloat(mrpInput.value) || 0;
+        
+        if (mrp > price && price > 0) {
+            const discount = ((mrp - price) / mrp * 100).toFixed(1);
+            discountDisplay.innerHTML = `
+                <div class="discount-calc">
+                    <strong>🎯 Discount: ${discount}% OFF</strong><br>
+                    Customer saves ₹${(mrp - price).toFixed(2)} per unit
+                </div>
+            `;
+        } else {
+            discountDisplay.innerHTML = '';
+        }
+    }
+    
+    // Calculate on page load if MRP is filled
+    calculateDiscount();
+</script>
 {% endblock %}

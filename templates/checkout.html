@@ -1,100 +1,261 @@
 {% extends 'base.html' %}
 {% block content %}
-  <h1>Checkout</h1>
-  
-  {% if items %}
-    <div class="checkout-items">
-      {% for it in items %}
-        <div class="checkout-row">
-          <img src="{{it.image}}" alt="{{it.name}}" style="width:50px; height:50px; object-fit:cover;" onerror="this.src='https://via.placeholder.com/50'">
-          <div>{{it.name}} x {{'%.1f' % it.qty}} kg</div>
-          <div>₹{{'%.2f' % it.subtotal}}</div>
-        </div>
-      {% endfor %}
-    </div>
-
-    <div class="cart-summary" style="margin: 20px 0; font-size: 1.2em;">
-        Total to Pay: <strong>₹{{'%.2f' % total}}</strong>
-    </div>
-
-    <button id="rzp-button1" class="btn" style="background-color: #28a745; margin-bottom: 20px;">Pay Online</button>
-
-    <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-        <h3>Delivery Details</h3>
-        <p style="color: #666; font-size: 0.9em;">
-            {% if session.user %}
-                Verify or edit your address below. We will save changes for next time.
-            {% else %}
-                <a href="/login" style="color: #28a745;">Login</a> to save your address for future orders.
-            {% endif %}
-        </p>
-
-        <form method="post" id="order-form" class="checkout-form">
-          <div class="address-grid">
-            <div class="field"><label>Name <input required name="name" value="{{ address_data.get('name', '') }}"></label></div>
-            <div class="field"><label>Phone <input required name="phone" placeholder="Mobile number" value="{{ address_data.get('phone', '') }}"></label></div>
-            <div class="field full"><label>Address <textarea required name="address" placeholder="House number, street">{{ address_data.get('address', '') }}</textarea></label></div>
-            <div class="field"><label>Taluk <input required name="taluk" placeholder="Taluk" value="{{ address_data.get('taluk', '') }}"></label></div>
-            <div class="field"><label>Near Location <input name="near" placeholder="Landmark" value="{{ address_data.get('near', '') }}"></label></div>
-            <div class="field"><label>District <input required name="district" placeholder="District" value="{{ address_data.get('district', '') }}"></label></div>
-            <div class="field"><label>Pincode <input required name="pincode" placeholder="PIN code" value="{{ address_data.get('pincode', '') }}"></label></div>
-          </div>
-          
-          <input type="hidden" name="total_amt" value="{{ total }}">
-          
-          <label style="margin-top: 15px; display: block; font-weight: bold;">Payment Method</label>
-          <select name="payment" style="width: 100%; padding: 10px; margin-bottom: 20px;">
-            <option>Cash on Delivery</option>
-          </select>
-          
-          <button class="btn" type="submit" style="width: 100%; font-size: 1.1em;">Confirm & Place Order (COD)</button>
-        </form>
-    </div>
-
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-    <script>
-    document.getElementById('rzp-button1').onclick = function(e){
-        // 1. Get the Order ID from your Flask backend
-        fetch('/create/order', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'total_amt={{ total }}'
-        })
-        .then(res => res.json())
-        .then(order => {
-            if(order.error) {
-                alert("Error creating order: " + order.error);
-                return;
-            }
-
-            var options = {
-                "key": "your_rzp_test_key_here", // REPLACE THIS WITH YOUR REAL TEST KEY
-                "amount": order.amount, 
-                "currency": "INR",
-                "name": "FreshBasket",
-                "description": "Fruit Purchase",
-                "order_id": order.id, 
-                "handler": function (response){
-                    alert("Payment Successful! ID: " + response.razorpay_payment_id);
-                    // Automatically submit the form to save address and confirm order
-                    document.getElementById('order-form').submit();
-                },
-                "prefill": {
-                    "name": document.getElementsByName('name')[0].value,
-                    "contact": document.getElementsByName('phone')[0].value
-                },
-                "theme": { "color": "#28a745" }
-            };
-            var rzp1 = new Razorpay(options);
-            rzp1.open();
-        })
-        .catch(err => console.error(err));
-        e.preventDefault();
+<style>
+    .checkout-container {
+        max-width: 900px;
+        margin: 40px auto;
+        padding: 20px;
     }
-    </script>
+    
+    .checkout-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+    }
+    
+    .checkout-section {
+        background: white;
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    .form-group {
+        margin-bottom: 15px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 600;
+        color: #333;
+    }
+    
+    .form-group input,
+    .form-group textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+    }
+    
+    .form-group textarea {
+        resize: vertical;
+        min-height: 80px;
+    }
+    
+    .saved-address {
+        background: #f0f9ff;
+        border: 2px solid #0ea5e9;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .edit-address-btn {
+        background: #0ea5e9;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        margin-top: 10px;
+    }
+    
+    .edit-address-btn:hover {
+        background: #0284c7;
+    }
+    
+    .order-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .order-summary {
+        background: #f9fafb;
+        padding: 20px;
+        border-radius: 8px;
+        margin-top: 20px;
+    }
+    
+    .payment-option {
+        display: flex;
+        align-items: center;
+        padding: 12px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        cursor: pointer;
+    }
+    
+    .payment-option:hover {
+        border-color: #0ea5e9;
+        background: #f0f9ff;
+    }
+    
+    .payment-option input[type="radio"] {
+        margin-right: 10px;
+    }
+    
+    .place-order-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 15px;
+        width: 100%;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        margin-top: 20px;
+    }
+    
+    .place-order-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
 
-  {% else %}
-    <p>Your cart is empty.</p>
-    <a href="/" class="btn">Go Shopping</a>
-  {% endif %}
+    @media (max-width: 768px) {
+        .checkout-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="checkout-container">
+    <h2 style="margin-bottom: 30px; color: #333;">Checkout</h2>
+    
+    <form method="POST">
+        <div class="checkout-grid">
+            <!-- Delivery Address Section -->
+            <div class="checkout-section">
+                <h3 style="margin-top: 0;">📍 Delivery Address</h3>
+                
+                {% if address_data and address_data.get('name') %}
+                <div class="saved-address" id="savedAddress">
+                    <h4 style="margin: 0 0 10px 0; color: #0ea5e9;">✓ Saved Address</h4>
+                    <p style="margin: 5px 0;"><strong>{{ address_data.name }}</strong></p>
+                    <p style="margin: 5px 0;">{{ address_data.phone }}</p>
+                    <p style="margin: 5px 0;">{{ address_data.address }}</p>
+                    <p style="margin: 5px 0;">{{ address_data.taluk }}, {{ address_data.pincode }}</p>
+                    <button type="button" class="edit-address-btn" onclick="editAddress()">
+                        ✏️ Edit Address
+                    </button>
+                </div>
+                {% endif %}
+                
+                <div id="addressForm" {% if address_data and address_data.get('name') %}style="display: none;"{% endif %}>
+                    <div class="form-group">
+                        <label>Full Name *</label>
+                        <input type="text" name="name" value="{{ address_data.name or '' }}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Phone Number *</label>
+                        <input type="tel" name="phone" pattern="[0-9]{10}" value="{{ address_data.phone or '' }}" required placeholder="10 digit mobile">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Complete Address *</label>
+                        <textarea name="address" required placeholder="House no, Building, Street, Area">{{ address_data.address or '' }}</textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>City/Taluk *</label>
+                        <input type="text" name="taluk" value="{{ address_data.taluk or '' }}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Pincode *</label>
+                        <input type="text" name="pincode" pattern="[0-9]{6}" value="{{ address_data.pincode or '' }}" required placeholder="6 digit pincode">
+                    </div>
+                    
+                    {% if address_data and address_data.get('name') %}
+                    <button type="button" class="edit-address-btn" onclick="cancelEdit()" style="background: #6b7280;">
+                        ← Use Saved Address
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Order Summary Section -->
+            <div class="checkout-section">
+                <h3 style="margin-top: 0;">🛒 Order Summary</h3>
+                
+                {% for item in items %}
+                <div class="order-item">
+                    <div>
+                        <strong>{{ item.name }}</strong>
+                        <br>
+                        <small style="color: #666;">{{ item.qty }} kg × ₹{{ item.name }}</small>
+                    </div>
+                    <div style="text-align: right;">
+                        <strong style="color: #28a745;">₹{{ '%.2f' % item.subtotal }}</strong>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                <div class="order-summary">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                        <span>Subtotal:</span>
+                        <strong>₹{{ '%.2f' % total }}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                        <span>Delivery:</span>
+                        <strong style="color: #28a745;">FREE</strong>
+                    </div>
+                    <hr style="border: 0; border-top: 2px solid #e5e7eb; margin: 15px 0;">
+                    <div style="display: flex; justify-content: space-between; font-size: 1.2em;">
+                        <strong>Total:</strong>
+                        <strong style="color: #28a745;">₹{{ '%.2f' % total }}</strong>
+                    </div>
+                </div>
+                
+                <h3 style="margin-top: 30px;">💳 Payment Method</h3>
+                
+                <label class="payment-option">
+                    <input type="radio" name="payment" value="Cash on Delivery" checked>
+                    <div>
+                        <strong>Cash on Delivery</strong>
+                        <br>
+                        <small style="color: #666;">Pay when you receive</small>
+                    </div>
+                </label>
+                
+                <label class="payment-option">
+                    <input type="radio" name="payment" value="UPI/Online">
+                    <div>
+                        <strong>UPI / Online Payment</strong>
+                        <br>
+                        <small style="color: #666;">Pay now via UPI</small>
+                    </div>
+                </label>
+                
+                <button type="submit" class="place-order-btn">
+                    Place Order - ₹{{ '%.2f' % total }}
+                </button>
+                
+                <p style="text-align: center; color: #666; font-size: 0.85em; margin-top: 15px;">
+                    🔒 Your information is safe and secure
+                </p>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+function editAddress() {
+    document.getElementById('savedAddress').style.display = 'none';
+    document.getElementById('addressForm').style.display = 'block';
+}
+
+function cancelEdit() {
+    document.getElementById('savedAddress').style.display = 'block';
+    document.getElementById('addressForm').style.display = 'none';
+}
+</script>
 {% endblock %}

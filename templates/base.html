@@ -6,29 +6,93 @@
     <title>FreshBasket</title>
     <link rel="stylesheet" href="/static/style.css">
     <style>
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        background: #f8f9fa;
+      }
+
+      .nav {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 15px 30px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      }
+
+      .brand {
+        font-size: 1.5em;
+        font-weight: bold;
+      }
+
+      .nav-links {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+      }
+
+      .nav-links a {
+        color: white;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        padding: 8px 0;
+        border-bottom: 2px solid transparent;
+      }
+
+      .nav-links a:hover {
+        border-bottom-color: white;
+      }
+
+      .nav-links input {
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: none;
+        width: 200px;
+      }
+
+      .nav-links button {
+        background: rgba(255, 255, 255, 0.3);
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .nav-links button:hover {
+        background: rgba(255, 255, 255, 0.5);
+      }
+
       .cart-link {
         position: relative;
         display: inline-block;
       }
+
       .cart-badge {
         position: absolute;
         top: -8px;
         right: -10px;
-        background: #e74c3c;
+        background: #ff4757;
         color: white;
         border-radius: 50%;
-        width: 20px;
-        height: 20px;
+        width: 22px;
+        height: 22px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 11px;
+        font-size: 12px;
         font-weight: bold;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        border: 2px solid white;
       }
+
       .cart-badge.hidden {
         display: none;
       }
+
       .toast {
         position: fixed;
         bottom: 30px;
@@ -36,18 +100,46 @@
         background: #28a745;
         color: white;
         padding: 15px 25px;
-        border-radius: 8px;
+        border-radius: 10px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         z-index: 9999;
         display: none;
         animation: slideIn 0.3s ease;
+        max-width: 300px;
       }
+
       .toast.show {
         display: block;
       }
+
       .toast.error {
         background: #dc3545;
       }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      footer {
+        text-align: center;
+        margin-top: 60px;
+        padding: 30px 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-size: 0.9em;
+      }
+
+      footer a {
+        color: white;
+        text-decoration: none;
+      }
+
+      footer a:hover {
+        text-decoration: underline;
+      }
+
       @keyframes slideIn {
         from {
           transform: translateX(400px);
@@ -64,22 +156,21 @@
     <header class="nav">
       <div class="brand"><a href="/" style="color:white;text-decoration:none;">🥬 FreshBasket</a></div>
       <nav class="nav-links">
-        <form action="/" method="GET" style="display:inline-block; margin-right: 15px;">
-            <input type="text" name="q" placeholder="Search fruit..." value="{{ query or '' }}" 
-                   style="padding: 5px; border-radius: 4px; border: none;">
-            <button type="submit" class="btn" style="padding: 5px 10px; font-size: 0.9em; height: 28px;">🔍</button>
+        <form action="/" method="GET" style="display:inline-flex; gap: 5px;">
+            <input type="text" name="q" placeholder="Search fruit..." value="{{ query or '' }}">
+            <button type="submit">🔍</button>
         </form>
-        <a href="/">Home</a>
+        <a href="/">🏠 Home</a>
         <a href="/cart" class="cart-link">
-          Cart
+          🛒 Cart
           <span class="cart-badge hidden" id="cart-count">0</span>
         </a>
         {% if session.user %}
-          <a href="/history">Orders</a>
-          <a href="/logout">Logout</a>
+          <a href="/history">📦 Orders</a>
+          <a href="/logout">🚪 Logout</a>
         {% else %}
-          <a href="/login">Login</a>
-          <a href="/signup">Signup</a>
+          <a href="/login">🔐 Login</a>
+          <a href="/signup">📝 Signup</a>
         {% endif %}
       </nav>
     </header>
@@ -90,8 +181,8 @@
     
     <div id="toast" class="toast"></div>
     
-    <footer style="text-align: center; margin-top: 50px; font-size: 0.8em; color: #aaa;">
-      <p>&copy; 2026 FreshBasket. <a href="/admin/login" style="color: #aaa; text-decoration: none;">Admin Login</a></p>
+    <footer>
+      <p>&copy; 2026 FreshBasket - Fresh & Organic Produce Delivery | <a href="/admin/login">Admin Login</a></p>
     </footer>
 
     <script>

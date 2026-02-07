@@ -4,13 +4,14 @@
         "name": "Papaya",
         "price": 85.0,
         "image": "/static/images/papaya.jpg",
-        "mrp": 85.0
+        "mrp": 90.0
     },
     {
         "id": 3,
         "name": "Guava",
-        "price": 60,
-        "image": "/static/images/guava.jpg"
+        "price": 60.0,
+        "image": "/static/images/guava.jpg",
+        "mrp": 65.2
     },
     {
         "id": 4,
@@ -23,13 +24,14 @@
         "name": "Grapes",
         "price": 60.0,
         "image": "/static/images/grapes.jpg",
-        "mrp": 60.0
+        "mrp": 65.0
     },
     {
         "id": 6,
         "name": "Pineapple",
-        "price": 90,
-        "image": "https://upload.wikimedia.org/wikipedia/commons/c/cb/Pineapple_and_cross_section.jpg"
+        "price": 85.0,
+        "image": "https://upload.wikimedia.org/wikipedia/commons/c/cb/Pineapple_and_cross_section.jpg",
+        "mrp": 90.0
     },
     {
         "id": 7,

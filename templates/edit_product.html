@@ -1,40 +1,268 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div style="max-width: 500px; margin: 40px auto; padding: 20px; background: white; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
-    <h2 style="text-align: center; color: #28a745;">✏️ Edit Product</h2>
-    <p style="text-align: center; color: #666;">Updating: <strong>{{ product.name }}</strong> (ID: {{ product.id }})</p>
+<style>
+    .edit-wrapper {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 40px 20px;
+    }
 
-    <form action="/admin/edit/{{ product.id }}" method="POST">
-        <div style="margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Product Name</label>
-            <input type="text" name="name" value="{{ product.name }}" 
-                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;" required>
+    .edit-container {
+        max-width: 600px;
+        margin: 0 auto;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        padding: 40px;
+        border-radius: 20px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    .edit-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .edit-header h2 {
+        margin: 0;
+        font-size: 1.8em;
+        color: #333;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .edit-header p {
+        color: #666;
+        margin: 8px 0 0 0;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        color: #333;
+        font-weight: 600;
+        font-size: 0.95em;
+    }
+
+    .form-group input {
+        width: 100%;
+        padding: 12px 15px;
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        font-size: 1em;
+        transition: all 0.3s ease;
+        box-sizing: border-box;
+        font-family: inherit;
+    }
+
+    .form-group input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        background: rgba(102, 126, 234, 0.02);
+    }
+
+    .form-group small {
+        display: block;
+        margin-top: 6px;
+        color: #999;
+        font-size: 0.85em;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+    }
+
+    .price-info {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px;
+        border-radius: 10px;
+        margin: 20px 0;
+        font-size: 0.9em;
+    }
+
+    .price-info strong {
+        display: block;
+        margin-bottom: 8px;
+    }
+
+    .button-group {
+        display: flex;
+        gap: 12px;
+        margin-top: 30px;
+    }
+
+    .btn-save {
+        flex: 2;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 1em;
+        font-weight: 700;
+        transition: all 0.3s ease;
+    }
+
+    .btn-save:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-cancel {
+        flex: 1;
+        background: #e0e0e0;
+        color: #333;
+        text-align: center;
+        text-decoration: none;
+        padding: 14px;
+        border-radius: 10px;
+        font-size: 1em;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        cursor: pointer;
+    }
+
+    .btn-cancel:hover {
+        background: #d0d0d0;
+        transform: translateY(-2px);
+    }
+
+    .discount-calc {
+        background: #f0f4ff;
+        padding: 12px;
+        border-radius: 8px;
+        margin-top: 8px;
+        font-size: 0.9em;
+        color: #667eea;
+        border-left: 4px solid #667eea;
+    }
+</style>
+
+<div class="edit-wrapper">
+    <div class="edit-container">
+        <div class="edit-header">
+            <h2>✏️ Edit Product</h2>
+            <p>Updating: <strong>{{ product.name }}</strong> (ID: {{ product.id }})</p>
         </div>
 
-        <div style="margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Price (₹)</label>
-            <input type="number" step="0.01" name="price" value="{{ product.price }}" 
-                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;" required>
-        </div>
+        <form action="/admin/edit/{{ product.id }}" method="POST">
+            <!-- Product Name -->
+            <div class="form-group">
+                <label for="name">Product Name *</label>
+                <input 
+                    type="text" 
+                    id="name"
+                    name="name" 
+                    value="{{ product.name }}" 
+                    required
+                    placeholder="e.g., Fresh Apples"
+                >
+            </div>
 
-        <div style="margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Image URL</label>
-            <input type="text" name="image" value="{{ product.image }}" 
-                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;" required>
-            <small style="color: #888;">Paste a link to a new fruit image here.</small>
-        </div>
+            <!-- Price and MRP in Row -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="price">Selling Price (₹) *</label>
+                    <input 
+                        type="number" 
+                        id="price"
+                        step="0.01" 
+                        name="price" 
+                        value="{{ product.price }}" 
+                        required
+                        placeholder="0.00"
+                        min="0"
+                    >
+                    <small>Current selling price per unit</small>
+                </div>
 
-        <div style="display: flex; gap: 10px; margin-top: 20px;">
-            <button type="submit" 
-                    style="flex: 2; background: #28a745; color: white; border: none; padding: 12px; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold;">
-                Save Changes
-            </button>
-            <a href="/admin/dashboard" 
-               style="flex: 1; text-align: center; background: #6c757d; color: white; text-decoration: none; padding: 12px; border-radius: 5px; font-size: 16px;">
-                Cancel
-            </a>
-        </div>
-    </form>
+                <div class="form-group">
+                    <label for="mrp">MRP / Original Price (₹)</label>
+                    <input 
+                        type="number" 
+                        id="mrp"
+                        step="0.01" 
+                        name="mrp" 
+                        value="{{ product.mrp | default('', true) }}" 
+                        placeholder="0.00"
+                        min="0"
+                        onchange="calculateDiscount()"
+                        oninput="calculateDiscount()"
+                    >
+                    <small>Leave empty if no discount</small>
+                </div>
+            </div>
+
+            <!-- Discount Display -->
+            <div id="discount-display"></div>
+
+            <!-- Price Info Warning -->
+            <div class="price-info">
+                <strong>💡 Discount Tip:</strong>
+                If MRP is higher than Selling Price, a discount badge will show in the store and admin dashboard.
+            </div>
+
+            <!-- Image URL -->
+            <div class="form-group">
+                <label for="image">Image URL *</label>
+                <input 
+                    type="text" 
+                    id="image"
+                    name="image" 
+                    value="{{ product.image }}" 
+                    required
+                    placeholder="https://example.com/image.jpg"
+                >
+                <small>Paste a link to a fruit/vegetable image</small>
+            </div>
+
+            <!-- Buttons -->
+            <div class="button-group">
+                <button type="submit" class="btn-save">💾 Save Changes</button>
+                <a href="/admin/dashboard" class="btn-cancel">Cancel</a>
+            </div>
+        </form>
+    </div>
 </div>
+
+<script>
+    function calculateDiscount() {
+        const priceInput = document.getElementById('price');
+        const mrpInput = document.getElementById('mrp');
+        const discountDisplay = document.getElementById('discount-display');
+        
+        const price = parseFloat(priceInput.value) || 0;
+        const mrp = parseFloat(mrpInput.value) || 0;
+        
+        if (mrp > price && price > 0) {
+            const discount = ((mrp - price) / mrp * 100).toFixed(1);
+            discountDisplay.innerHTML = `
+                <div class="discount-calc">
+                    <strong>🎯 Discount: ${discount}% OFF</strong><br>
+                    Customer saves ₹${(mrp - price).toFixed(2)}
+                </div>
+            `;
+        } else {
+            discountDisplay.innerHTML = '';
+        }
+    }
+    
+    // Calculate on page load
+    calculateDiscount();
+</script>
 {% endblock %}
