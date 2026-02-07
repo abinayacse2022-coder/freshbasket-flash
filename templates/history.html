@@ -9,26 +9,36 @@
         <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; border-left: 5px solid #28a745;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                    <h4 style="margin: 0;">Order #{{ order.order_id }}</h4>
-                    <small style="color: #666;">Placed on: {{ order.date }}</small>
+                    <h4 style="margin: 0;">Order {% if order.get('order_id') %}#{{ order.order_id }}{% else %}#{{ loop.index }}{% endif %}</h4>
+                    <small style="color: #666;">Placed on: {{ order.get('date', 'N/A') }}</small>
                 </div>
                 <div style="text-align: right;">
-                    <strong style="font-size: 1.2em; color: #28a745;">₹{{ order.total }}</strong>
+                    <strong style="font-size: 1.2em; color: #28a745;">₹{{ '%.2f' | format(order.get('total', 0)) }}</strong>
                 </div>
             </div>
             
             <div style="margin-top: 15px; font-size: 0.9em; color: #444;">
                 <strong>Items:</strong>
                 <ul style="margin: 5px 0;">
-                    {% for item in order.items %}
-                        <li>{{ item.name }} (x{{ item.qty }}) - ₹{{ item.subtotal }}</li>
+                    {% for item in order.get('items', []) %}
+                        <li>{{ item.get('name', 'Item') }} ({{ '%.1f' | format(item.get('qty', 0)) }} kg) - ₹{{ '%.2f' | format(item.get('subtotal', 0)) }}</li>
                     {% endfor %}
                 </ul>
             </div>
 
+            {% if order.get('address') %}
             <div style="margin-top: 10px; font-size: 0.85em; background: #f9f9f9; padding: 10px; border-radius: 4px;">
-                <strong>Delivered to:</strong> {{ order.address.name }}, {{ order.address.taluk }}
+                <strong>Delivered to:</strong> {{ order.address.get('name', 'N/A') }}, {{ order.address.get('taluk', 'N/A') }}
+                <br>
+                <small>Phone: {{ order.address.get('phone', 'N/A') }}</small>
             </div>
+            {% endif %}
+
+            {% if order.get('payment') %}
+            <div style="margin-top: 10px;">
+                <small><strong>Payment:</strong> {{ order.payment }}</small>
+            </div>
+            {% endif %}
         </div>
         {% endfor %}
     {% else %}

@@ -10,11 +10,20 @@
     }
     .old-price { text-decoration: line-through; color: #999; margin-right: 5px; font-size: 0.9em; }
     .new-price { color: #28a745; font-weight: bold; font-size: 1.1em; }
-    
-    /* Ensure qty input looks clean */
     .qty { border: none; text-align: center; width: 40px; font-weight: bold; }
     .qty-controls { display: flex; align-items: center; justify-content: center; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; width: fit-content; margin: 10px auto; }
-    .qty-controls button { background: #eee; border: none; padding: 5px 10px; cursor: pointer; }
+    .qty-controls button { background: #eee; border: none; padding: 5px 10px; cursor: pointer; transition: background 0.2s; }
+    .qty-controls button:hover { background: #ddd; }
+    .add-cart {
+      transition: all 0.2s ease;
+    }
+    .add-cart:hover {
+      transform: scale(1.05);
+    }
+    .add-cart.loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
 </style>
 
 <div class="home-hero">
@@ -30,33 +39,25 @@
     {% if products %}
         <div class="grid">
         {% for p in products %}
-          <div class="card" data-id="{{p.id}}">
-            
+          <div class="card">
             {% if p.mrp and p.mrp > p.price %}
                 {% set discount = ((p.mrp - p.price) / p.mrp * 100) %}
                 <div class="offer-badge">{{ '%.0f' % discount }}% OFF</div>
             {% endif %}
-
             <img src="{{p.image}}" alt="{{p.name}}" loading="lazy" onerror="this.src='/static/images/placeholder.svg'">
-            
             <h3>{{p.name}}</h3>
-            
             <p class="price">
                 {% if p.mrp and p.mrp > p.price %}
                     <span class="old-price">₹{{'%.0f' % p.mrp}}</span>
                 {% endif %}
                 <span class="new-price">₹{{'%.0f' % p.price}} / kg</span>
             </p>
-            
-            <form method="POST" action="/cart/add" class="add-form">
-                <input type="hidden" name="product_id" value="{{p.id}}">
-                
+            <form class="add-form" data-product-id="{{p.id}}" data-product-name="{{p.name}}">
                 <div class="qty-controls">
                     <button type="button" class="qty-decrease">-</button>
-                    <input class="qty" name="qty" type="number" value="1.0" min="0.1" step="0.1" readonly>
+                    <input class="qty" name="qty" type="text" value="1.0" readonly>
                     <button type="button" class="qty-increase">+</button>
                 </div>
-
                 <button class="add-cart" type="submit">Add to Cart</button>
             </form>
           </div>
@@ -64,26 +65,54 @@
         </div>
     {% else %}
         <div style="text-align: center; padding: 50px;">
-            <h3>No products found for "{{ query }}"</h3>
+            <h3>No products found</h3>
             <a href="/" class="btn">View All Products</a>
         </div>
     {% endif %}
 </div>
 
 <script>
-document.querySelectorAll('.add-form').forEach(form => {
-    const input = form.querySelector('.qty');
-    
-    form.querySelector('.qty-increase').addEventListener('click', () => {
-        input.value = (parseFloat(input.value) + 0.1).toFixed(1);
-    });
-
-    form.querySelector('.qty-decrease').addEventListener('click', () => {
-        if (parseFloat(input.value) > 0.1) {
-            input.value = (parseFloat(input.value) - 0.1).toFixed(1);
-        }
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.add-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const productId = this.dataset.productId;
+            const productName = this.dataset.productName;
+            const qty = this.querySelector('.qty').value;
+            const submitBtn = this.querySelector('.add-cart');
+            
+            submitBtn.classList.add('loading');
+            submitBtn.textContent = 'Adding...';
+            
+            const formData = new FormData();
+            formData.append('product_id', productId);
+            formData.append('qty', qty);
+            
+            fetch('/cart/add', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(`✅ ${productName} (${qty} kg) added to cart!`);
+                    updateCartCount();
+                    form.querySelector('.qty').value = '1.0';
+                } else {
+                    showToast('❌ ' + (data.message || 'Error adding to cart'), true);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('❌ Failed to add item to cart', true);
+            })
+            .finally(() => {
+                submitBtn.classList.remove('loading');
+                submitBtn.textContent = 'Add to Cart';
+            });
+        });
     });
 });
 </script>
-
 {% endblock %}

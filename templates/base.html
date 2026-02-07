@@ -5,20 +5,77 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>FreshBasket</title>
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+      .cart-link {
+        position: relative;
+        display: inline-block;
+      }
+      .cart-badge {
+        position: absolute;
+        top: -8px;
+        right: -10px;
+        background: #e74c3c;
+        color: white;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: bold;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      }
+      .cart-badge.hidden {
+        display: none;
+      }
+      .toast {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        background: #28a745;
+        color: white;
+        padding: 15px 25px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        z-index: 9999;
+        display: none;
+        animation: slideIn 0.3s ease;
+      }
+      .toast.show {
+        display: block;
+      }
+      .toast.error {
+        background: #dc3545;
+      }
+      @keyframes slideIn {
+        from {
+          transform: translateX(400px);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+    </style>
   </head>
   <body>
     <header class="nav">
-      <div class="brand"><a href="/" style="color:white;text-decoration:none;">FreshBasket</a></div>
+      <div class="brand"><a href="/" style="color:white;text-decoration:none;">🥬 FreshBasket</a></div>
       <nav class="nav-links">
-        
         <form action="/" method="GET" style="display:inline-block; margin-right: 15px;">
             <input type="text" name="q" placeholder="Search fruit..." value="{{ query or '' }}" 
                    style="padding: 5px; border-radius: 4px; border: none;">
             <button type="submit" class="btn" style="padding: 5px 10px; font-size: 0.9em; height: 28px;">🔍</button>
         </form>
         <a href="/">Home</a>
-        <a href="/cart">Cart</a>
+        <a href="/cart" class="cart-link">
+          Cart
+          <span class="cart-badge hidden" id="cart-count">0</span>
+        </a>
         {% if session.user %}
+          <a href="/history">Orders</a>
           <a href="/logout">Logout</a>
         {% else %}
           <a href="/login">Login</a>
@@ -31,57 +88,61 @@
       {% block content %}{% endblock %}
     </main>
     
+    <div id="toast" class="toast"></div>
+    
+    <footer style="text-align: center; margin-top: 50px; font-size: 0.8em; color: #aaa;">
+      <p>&copy; 2026 FreshBasket. <a href="/admin/login" style="color: #aaa; text-decoration: none;">Admin Login</a></p>
+    </footer>
+
     <script>
-        // Simple JS to handle adding to cart
-        function addToCart(pid) {
-            fetch('/cart/add', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({product_id: pid, qty: 1})
-            })
-            .then(res => res.json())
-            .then(data => {
-                alert("Item added to cart!");
-            });
-        }
-       
+      function updateCartCount() {
+        fetch('/cart/count')
+          .then(res => res.json())
+          .then(data => {
+            const badge = document.getElementById('cart-count');
+            if (data.count > 0) {
+              badge.textContent = data.count;
+              badge.classList.remove('hidden');
+            } else {
+              badge.classList.add('hidden');
+            }
+          })
+          .catch(err => console.error('Error:', err));
+      }
+      
+      function showToast(message, isError = false) {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.className = 'toast show' + (isError ? ' error' : '');
+        setTimeout(() => {
+          toast.classList.remove('show');
+        }, 3000);
+      }
+      
+      document.addEventListener("DOMContentLoaded", function() {
+        updateCartCount();
+        
+        const controls = document.querySelectorAll('.qty-controls');
+        controls.forEach(control => {
+          const input = control.querySelector('.qty');
+          const btnMinus = control.querySelector('.qty-decrease');
+          const btnPlus = control.querySelector('.qty-increase');
+
+          const updateQty = (change) => {
+            let currentVal = parseFloat(input.value) || 0;
+            let newVal = currentVal + change;
+            if (newVal < 0.5) newVal = 0.5;
+            input.value = newVal.toFixed(1);
+          };
+
+          if (btnMinus) {
+            btnMinus.addEventListener('click', () => updateQty(-0.5));
+          }
+          if (btnPlus) {
+            btnPlus.addEventListener('click', () => updateQty(0.5));
+          }
+        });
+      });
     </script>
-     <footer style="text-align: center; margin-top: 50px; font-size: 0.8em; color: #aaa;">
-    <p>&copy; 2024 FreshBasket. <a href="/admin/login" style="color: #aaa; text-decoration: none;">Admin Login</a></p>
-</footer>
-<script>
-  document.addEventListener("DOMContentLoaded", function() {
-    // Find all quantity control sections
-    const controls = document.querySelectorAll('.qty-controls');
-
-    controls.forEach(control => {
-      const input = control.querySelector('.qty');
-      const btnMinus = control.querySelector('.qty-decrease');
-      const btnPlus = control.querySelector('.qty-increase');
-
-      // Helper to update value safely
-      const updateQty = (change) => {
-        let currentVal = parseFloat(input.value) || 0;
-        let newVal = currentVal + change;
-        
-        // Don't let it go below 0.5 kg
-        if (newVal < 0.5) newVal = 0.5;
-        
-        // Round to 1 decimal place (e.g., 1.0, 1.5, 2.0)
-        input.value = newVal.toFixed(1);
-      };
-
-      // Click Minus
-      btnMinus.addEventListener('click', () => {
-        updateQty(-0.5); // Decrease by 0.5 kg
-      });
-
-      // Click Plus
-      btnPlus.addEventListener('click', () => {
-        updateQty(0.5); // Increase by 0.5 kg
-      });
-    });
-  });
-</script>
   </body>
 </html>

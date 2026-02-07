@@ -2,9 +2,9 @@
     {
         "id": 2,
         "name": "Papaya",
-        "price": 80.0,
+        "price": 85.0,
         "image": "/static/images/papaya.jpg",
-        "mrp": 80.0
+        "mrp": 85.0
     },
     {
         "id": 3,
@@ -21,8 +21,9 @@
     {
         "id": 5,
         "name": "Grapes",
-        "price": 120,
-        "image": "/static/images/grapes.jpg"
+        "price": 60.0,
+        "image": "/static/images/grapes.jpg",
+        "mrp": 60.0
     },
     {
         "id": 6,

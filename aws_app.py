@@ -1,44 +1,48 @@
 from flask import Flask, render_template, session, redirect, url_for, request, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 import boto3
+from boto3.dynamodb.conditions import Key, Attr
 import uuid
+import os
+import re
 from datetime import datetime
-import json
 from decimal import Decimal
 
-from app import PRODUCTS_FILE, save_json
+# --- CONFIGURATION ---
+app = Flask(__name__)
+app.secret_key = os.environ.get('SECRET_KEY', 'freshbasket_aws_secure_key_2026')
 
-# --- AWS CONFIGURATION ---
-application = app = Flask(__name__)
-application.secret_key = "aws_secret_key_change_me"
+# AWS Clients Setup
+AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
+dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION)
+sns_client = boto3.client('sns', region_name=AWS_REGION)
 
-REGION = 'us-east-1'
-SNS_TOPIC_ARN = 'arn:aws:sns:us-east-1:123456789012:MyFruitStoreOrders'
+# DynamoDB Table Names
+USERS_TABLE = dynamodb.Table('FreshBasket_Users')
+PRODUCTS_TABLE = dynamodb.Table('FreshBasket_Products')
+ORDERS_TABLE = dynamodb.Table('FreshBasket_Orders')
+SNS_TOPIC_ARN = os.environ.get('SNS_TOPIC_ARN', '')
 
-# Initialize AWS Clients
-dynamodb = boto3.resource('dynamodb', region_name=REGION)
-sns_client = boto3.client('sns', region_name=REGION)
+# ADMIN CREDENTIALS
+ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
+ADMIN_PASSWORD_HASH = generate_password_hash(os.environ.get('ADMIN_PASSWORD', 'admin123'))
 
-# DynamoDB Tables
-product_table = dynamodb.Table('Products')
-user_table = dynamodb.Table('Users')
-order_table = dynamodb.Table('Orders')
-
-# --- HELPER FUNCTIONS ---
-
+# Helper to handle DynamoDB Decimal types for JSON/Frontend
 def decimal_to_float(obj):
-    """Helper to convert DynamoDB Decimals to Python floats for JSON/Templates"""
-    if isinstance(obj, list): return [decimal_to_float(i) for i in obj]
-    elif isinstance(obj, dict): return {k: decimal_to_float(v) for k, v in obj.items()}
-    elif isinstance(obj, Decimal): return float(obj)
+    if isinstance(obj, list):
+        return [decimal_to_float(i) for i in obj]
+    elif isinstance(obj, dict):
+        return {k: decimal_to_float(v) for k, v in obj.items()}
+    elif isinstance(obj, Decimal):
+        return float(obj)
     return obj
 
+# --- PRODUCT LOGIC ---
 def get_all_products():
-    response = product_table.scan()
+    response = PRODUCTS_TABLE.scan()
     return decimal_to_float(response.get('Items', []))
 
-# --- USER ROUTES ---
-
+# --- PUBLIC ROUTES ---
 @app.route("/")
 def home():
     query = request.args.get('q')
@@ -55,112 +59,250 @@ def cart():
     for pid, qty in cart_data.items():
         p = all_products.get(pid)
         if p:
-            subtotal = p['price'] * float(qty)
-            items.append({**p, 'qty': float(qty), 'subtotal': subtotal})
-            total += subtotal
+            sub = float(p['price']) * float(qty)
+            items.append({**p, 'qty': float(qty), 'subtotal': sub})
+            total += sub
     return render_template('cart.html', items=items, total=total)
+
+@app.route('/cart/add', methods=['POST'])
+def add_to_cart():
+    pid = str(request.form.get('product_id', ''))
+    qty = float(request.form.get('qty', 1))
+    
+    try:
+        response = PRODUCTS_TABLE.get_item(Key={'id': pid})
+        product = response.get('Item')
+        if not product:
+            return jsonify({'success': False, 'message': 'Product not found'}), 404
+    except Exception as e:
+        return jsonify({'success': False, 'message': 'Error fetching product'}), 500
+    
+    cart_data = session.get('cart', {})
+    cart_data[pid] = float(cart_data.get(pid, 0)) + qty
+    session['cart'] = cart_data
+    session.modified = True
+    
+    product_name = decimal_to_float(product.get('name', 'Product'))
+    return jsonify({
+        'success': True,
+        'message': f'Added {product_name} to cart',
+        'cart_count': len(cart_data)
+    })
+
+@app.route('/cart/count')
+def cart_count():
+    cart_data = session.get('cart', {})
+    count = len(cart_data)
+    return jsonify({'count': count})
+
+@app.route('/cart/update/<pid>', methods=['POST'])
+def update_cart(pid):
+    qty = float(request.form.get('qty', 0))
+    cart_data = session.get('cart', {})
+    
+    if qty <= 0:
+        cart_data.pop(pid, None)
+    else:
+        cart_data[pid] = qty
+    
+    session['cart'] = cart_data
+    return redirect(url_for('cart'))
+
+@app.route('/cart/remove/<pid>')
+def remove_from_cart(pid):
+    cart_data = session.get('cart', {})
+    cart_data.pop(pid, None)
+    session['cart'] = cart_data
+    return redirect(url_for('cart'))
 
 @app.route('/checkout', methods=['GET', 'POST'])
 def checkout():
-    if 'user' not in session: return redirect(url_for('login'))
+    if 'user' not in session: 
+        return redirect(url_for('login'))
+    
     user_email = session['user']
     
-    # Calculate cart data for both GET and POST
+    # Fetch User from DynamoDB
+    user_res = USERS_TABLE.get_item(Key={'email': user_email})
+    user_data = user_res.get('Item', {'email': user_email, 'address': {}})
+
     cart_data = session.get('cart', {})
     all_p = {str(p['id']): p for p in get_all_products()}
     items_to_save, total_val = [], 0
+    
     for pid, qty in cart_data.items():
         if pid in all_p:
             p = all_p[pid]
-            sub = p['price'] * float(qty)
-            items_to_save.append({'name': p['name'], 'qty': float(qty), 'subtotal': sub})
+            sub = float(p['price']) * float(qty)
+            items_to_save.append({'name': p['name'], 'qty': Decimal(str(qty)), 'subtotal': Decimal(str(sub))})
             total_val += sub
 
-    if request.method == 'GET':
-        # Fetch saved address from DynamoDB Users table
-        user_res = user_table.get_item(Key={'email': user_email})
-        address_data = user_res.get('Item', {}).get('address', {})
-        return render_template('checkout.html', items=items_to_save, total=total_val, address_data=address_data)
+    if request.method == 'POST':
+        addr = {
+            'name': request.form.get('name'),
+            'phone': request.form.get('phone'),
+            'address': request.form.get('address'),
+            'pincode': request.form.get('pincode'),
+            'taluk': request.form.get('taluk')
+        }
+        
+        # Update User Address in DynamoDB
+        USERS_TABLE.update_item(
+            Key={'email': user_email},
+            UpdateExpression="set address = :a",
+            ExpressionAttributeValues={':a': addr}
+        )
 
-    # POST Logic: Process Order
-    name = request.form.get('name')
-    address = request.form.get('address')
-    phone = request.form.get('phone')
-    payment = request.form.get('payment', 'Cash on Delivery')
+        order_id = str(uuid.uuid4())[:8]
+        order_item = {
+            'order_id': order_id,
+            'user_email': user_email,
+            'date': datetime.now().strftime("%Y-%m-%d %H:%M"),
+            'items': items_to_save,
+            'total': Decimal(str(total_val)),
+            'address': addr,
+            'payment': request.form.get('payment', 'Cash on Delivery')
+        }
+        
+        ORDERS_TABLE.put_item(Item=order_item)
 
-    # 1. Update User's saved address
-    user_table.update_item(
-        Key={'email': user_email},
-        UpdateExpression="set #addr = :a",
-        ExpressionAttributeNames={'#addr': 'address'},
-        ExpressionAttributeValues={':a': {'name': name, 'address': address, 'phone': phone}}
-    )
+        # Send SNS notification
+        if SNS_TOPIC_ARN:
+            try:
+                sns_client.publish(
+                    TopicArn=SNS_TOPIC_ARN, 
+                    Message=f"New Order {order_id} placed by {addr['name']} for ₹{total_val}", 
+                    Subject="FreshBasket Order Confirmed"
+                )
+            except Exception as e:
+                print(f"SNS Error: {e}")
 
-    # 2. Save Order to History
-    order_id = str(uuid.uuid4())[:8]
-    order_date = datetime.now().strftime("%Y-%m-%d %H:%M")
-    order_item = {
-        'order_id': order_id,
-        'user_email': user_email,
-        'date': order_date,
-        'items': items_to_save,
-        'total': Decimal(str(total_val)),
-        'address': address,
-        'payment': payment
-    }
-    order_table.put_item(Item=order_item)
+        session.pop('cart', None)
+        return render_template('order_confirmation.html', order=addr, payment_method=order_item['payment'], total=total_val, order_id=order_id)
 
-    # 3. AWS SNS Detailed Alert
-    try:
-        sns_message = (f"🍎 NEW ORDER: {order_id}\n\n"
-                       f"Customer: {name}\n"
-                       f"Phone: {phone}\n"
-                       f"Total: ₹{total_val}\n"
-                       f"Address: {address}\n"
-                       f"Payment: {payment}")
-        sns_client.publish(TopicArn=SNS_TOPIC_ARN, Message=sns_message, Subject="New Fruit Store Order")
-    except Exception as e: print(f"SNS Failed: {e}")
-
-    session['cart'] = {}
-    return render_template('order_confirmation.html', order=order_item, payment_method=payment)
+    saved_addr = decimal_to_float(user_data.get('address', {}))
+    return render_template('checkout.html', address_data=saved_addr, items=decimal_to_float(items_to_save), total=total_val)
 
 @app.route('/history')
 def history():
-    if 'user' not in session: return redirect(url_for('login'))
-    user_email = session['user']
+    if 'user' not in session:
+        return redirect(url_for('login'))
     
-    # Scan orders for this user
-    response = order_table.scan(
-        FilterExpression=boto3.dynamodb.conditions.Attr('user_email').eq(user_email)
-    )
-    user_orders = decimal_to_float(response.get('Items', []))
-    user_orders.sort(key=lambda x: x['date'], reverse=True)
-    
-    return render_template('history.html', orders=user_orders)
+    try:
+        response = ORDERS_TABLE.scan(
+            FilterExpression=Attr('user_email').eq(session['user'])
+        )
+        user_orders = decimal_to_float(response.get('Items', []))
+        user_orders.sort(key=lambda x: x.get('date', ''), reverse=True)
+        return render_template('history.html', orders=user_orders)
+    except Exception as e:
+        print(f"Error loading order history: {e}")
+        return render_template('history.html', orders=[])
 
+# --- ADMIN ROUTES ---
+@app.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
+    if request.method == 'POST':
+        user = request.form.get('username')
+        pwd = request.form.get('password')
+        if user == ADMIN_USERNAME and check_password_hash(ADMIN_PASSWORD_HASH, pwd):
+            session['is_admin'] = True
+            return redirect(url_for('admin_dashboard'))
+        return render_template('admin_login.html', error="Invalid admin credentials")
+    return render_template('admin_login.html')
+
+@app.route('/admin/dashboard')
+def admin_dashboard():
+    if not session.get('is_admin'): 
+        return redirect(url_for('admin_login'))
+    return render_template('admin_dashboard.html', products=get_all_products())
+
+@app.route('/admin/add', methods=['GET', 'POST'])
+def add_product():
+    if not session.get('is_admin'): 
+        return redirect(url_for('admin_login'))
+
+    if request.method == 'POST':
+        new_id = str(uuid.uuid4())[:8]
+        item = {
+            "id": new_id,
+            "name": request.form.get('name'),
+            "price": Decimal(request.form.get('price')),
+            "mrp": Decimal(request.form.get('mrp') or request.form.get('price')),
+            "image": request.form.get('image')
+        }
+        PRODUCTS_TABLE.put_item(Item=item)
+        return redirect(url_for('admin_dashboard'))
+
+    return render_template('add_product.html')
+
+@app.route('/admin/edit/<pid>', methods=['GET', 'POST'])
+def edit_product(pid):
+    if not session.get('is_admin'): 
+        return redirect(url_for('admin_login'))
+    
+    response = PRODUCTS_TABLE.get_item(Key={'id': pid})
+    product = decimal_to_float(response.get('Item'))
+    
+    if request.method == 'POST' and product:
+        PRODUCTS_TABLE.update_item(
+            Key={'id': pid},
+            UpdateExpression="set #n = :name, price = :price, mrp = :mrp, image = :image",
+            ExpressionAttributeNames={'#n': 'name'},
+            ExpressionAttributeValues={
+                ':name': request.form.get('name'),
+                ':price': Decimal(request.form.get('price')),
+                ':mrp': Decimal(request.form.get('mrp') or request.form.get('price')),
+                ':image': request.form.get('image')
+            }
+        )
+        return redirect(url_for('admin_dashboard'))
+    
+    return render_template('edit_product.html', product=product)
+
+@app.route('/admin/delete/<pid>', methods=['POST'])
+def delete_product(pid):
+    if not session.get('is_admin'):
+        return redirect(url_for('admin_login'))
+    
+    try:
+        PRODUCTS_TABLE.delete_item(Key={'id': pid})
+    except Exception as e:
+        print(f"Error deleting product: {e}")
+    
+    return redirect(url_for('admin_dashboard'))
+
+# --- AUTH ROUTES ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         email = request.form.get('email')
         pwd = request.form.get('password')
-        response = user_table.get_item(Key={'email': email})
+        response = USERS_TABLE.get_item(Key={'email': email})
         user = response.get('Item')
+        
         if user and check_password_hash(user['password'], pwd):
             session['user'] = email
             return redirect(url_for('home'))
-        return render_template('login.html', error='Invalid credentials')
+        
+        return render_template('login.html', error="Invalid credentials")
     return render_template('login.html')
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
-        email = request.form.get('email')
+        email = (request.form.get('email') or '').strip().lower()
         pwd = request.form.get('password')
-        # Check if user exists
-        if 'Item' in user_table.get_item(Key={'email': email}):
-            return render_template('signup.html', error='User already exists')
-        
-        user_table.put_item(Item={
+
+        email_pattern = r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
+        if not re.match(email_pattern, email):
+            return render_template('signup.html', error="Enter a valid email address")
+
+        response = USERS_TABLE.get_item(Key={'email': email})
+        if response.get('Item'):
+            return render_template('signup.html', error="Email already registered")
+
+        USERS_TABLE.put_item(Item={
             'email': email,
             'password': generate_password_hash(pwd),
             'address': {}
@@ -168,39 +310,10 @@ def signup():
         session['user'] = email
         return redirect(url_for('home'))
     return render_template('signup.html')
-# --- ADMIN DASHBOARD (To view all products) ---
-@app.route('/admin/dashboard')
-def admin_dashboard():
-    if not session.get('is_admin'): 
-        return redirect(url_for('admin_login'))
-    products = get_all_products()
-    return render_template('admin_dashboard.html', products=products)
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('home'))
 
-# --- ADD PRODUCT ROUTE ---
-@app.route('/admin/add', methods=['GET', 'POST'])
-def add_product():
-    if not session.get('is_admin'): 
-        return redirect(url_for('admin_login'))
-        
-    if request.method == 'POST':
-        products = get_all_products()
-        
-        # 1. Create the new product object
-        new_product = {
-            "id": max([p['id'] for p in products]) + 1 if products else 1,
-            "name": request.form.get('name'),
-            "price": float(request.form.get('price')),
-            "mrp": float(request.form.get('mrp') or request.form.get('price')),
-            "image": request.form.get('image')
-        }
-        
-        # 2. Save it
-        products.append(new_product)
-        save_json(PRODUCTS_FILE, products)
-        
-        # 3. FIX: Redirect to the DASHBOARD so you can see the new item
-        return redirect(url_for('admin_dashboard'))
-        
-    return render_template('add_product.html')
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=5000)

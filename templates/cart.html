@@ -14,8 +14,14 @@
                         <p style="margin: 0; color: #7f8c8d; font-size: 0.9em;">Qty: {{ item.qty }} kg</p>
                     </div>
                 </div>
-                <div>
+                <div style="text-align: right;">
                     <strong style="color: #27ae60; font-size: 1.1em;">₹{{ '%.2f' % item.subtotal }}</strong>
+                    <div style="margin-top: 6px;">
+                        <a href="{{ url_for('remove_from_cart', pid=item.id) }}"
+                           style="color: #c0392b; text-decoration: none; font-size: 0.9em;">
+                          Remove
+                        </a>
+                    </div>
                 </div>
             </div>
         {% endfor %}
