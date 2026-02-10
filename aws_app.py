@@ -11,6 +11,7 @@ from decimal import Decimal
 # --- CONFIGURATION ---
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'freshbasket_aws_secure_key_2026')
+SNS_TOPIC_ARN = 'arn:aws:sns:us-east-1:194722419985:freshbasket_flash'
 
 # AWS Clients Setup
 AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
